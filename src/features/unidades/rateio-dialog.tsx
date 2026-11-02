@@ -41,7 +41,11 @@ export function validarRateio(
     erros.push("Preencha o percentual de todas as unidades.");
   if (linhas.some((l) => l.valor !== null && (l.valor < 0 || l.valor > 100)))
     erros.push("Cada percentual deve estar entre 0% e 100%.");
-  if (linhas.some((l) => l.valor !== null && Math.abs(l.valor * 100 - Math.round(l.valor * 100)) > 1e-6))
+  if (
+    linhas.some(
+      (l) => l.valor !== null && Math.abs(l.valor * 100 - Math.round(l.valor * 100)) > 1e-6,
+    )
+  )
     erros.push("Use no máximo duas casas decimais.");
   if (linhas.some((l) => l.unidade.situacao === "inativa" && (l.valor ?? 0) > 0))
     erros.push("Unidades inativas não podem receber percentual.");
