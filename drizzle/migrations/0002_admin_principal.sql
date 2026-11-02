@@ -1,0 +1,34 @@
+-- Define jeffersoncardosomb@gmail.com como administrador do SolarGest.
+-- * Se a conta já existe: confirma o e-mail, cria o perfil e concede o papel admin.
+-- * Se ainda não existe: o papel admin é concedido automaticamente no cadastro.
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  INSERT INTO public.perfis (id, email, nome)
+  VALUES (NEW.id, NEW.email, COALESCE(NEW.raw_user_meta_data ->> 'nome', split_part(NEW.email, '@', 1)))
+  ON CONFLICT (id) DO NOTHING;
+
+  PERFORM pg_advisory_xact_lock(hashtext('solargest_first_admin'));
+  IF lower(NEW.email) = 'jeffersoncardosomb@gmail.com'
+     OR NOT EXISTS (SELECT 1 FROM public.user_roles WHERE role = 'admin') THEN
+    INSERT INTO public.user_roles (user_id, role) VALUES (NEW.id, 'admin')
+    ON CONFLICT (user_id, role) DO NOTHING;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+UPDATE auth.users
+SET email_confirmed_at = COALESCE(email_confirmed_at, now())
+WHERE lower(email) = 'jeffersoncardosomb@gmail.com';
+
+INSERT INTO public.perfis (id, email, nome)
+SELECT id, email, split_part(email, '@', 1) FROM auth.users
+WHERE lower(email) = 'jeffersoncardosomb@gmail.com'
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.user_roles (user_id, role)
+SELECT id, 'admin' FROM auth.users
+WHERE lower(email) = 'jeffersoncardosomb@gmail.com'
+ON CONFLICT (user_id, role) DO NOTHING;

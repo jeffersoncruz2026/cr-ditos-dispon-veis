@@ -36,7 +36,7 @@ function AuthPage() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       setLoading(false);
       if (error) {
-        toast.error("E-mail ou senha inválidos.");
+        toast.error(mensagemErroLogin(error.message));
         return;
       }
       navigate({ to: "/dashboard" });
@@ -149,4 +149,16 @@ function AuthPage() {
       </div>
     </div>
   );
+}
+
+function mensagemErroLogin(msg: string) {
+  const m = msg.toLowerCase();
+  if (m.includes("email not confirmed"))
+    return "E-mail ainda não confirmado. Verifique sua caixa de entrada.";
+  if (m.includes("invalid login credentials")) return "E-mail ou senha inválidos.";
+  if (m.includes("rate limit") || m.includes("too many"))
+    return "Muitas tentativas. Aguarde alguns minutos.";
+  if (m.includes("fetch") || m.includes("network"))
+    return "Falha de conexão com o servidor. Tente novamente.";
+  return `Não foi possível entrar: ${msg}`;
 }
