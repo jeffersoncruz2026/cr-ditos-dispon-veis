@@ -23,7 +23,8 @@ import { Route as AuthenticatedIaRouteImport } from './routes/_authenticated/ia'
 import { Route as AuthenticatedImportarFaturasRouteImport } from './routes/_authenticated/importar-faturas'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedSimuladorRouteImport } from './routes/_authenticated/simulador'
-import { Route as AuthenticatedUnidadesRouteImport } from './routes/_authenticated/unidades'
+import { Route as AuthenticatedUnidadesIndexRouteImport } from './routes/_authenticated/unidades/index'
+import { Route as AuthenticatedUnidadesUnidadeIdRouteImport } from './routes/_authenticated/unidades/$unidadeId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -97,11 +98,18 @@ const AuthenticatedSimuladorRoute = AuthenticatedSimuladorRouteImport.update({
   path: '/simulador',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedUnidadesRoute = AuthenticatedUnidadesRouteImport.update({
-  id: '/unidades',
-  path: '/unidades',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
+const AuthenticatedUnidadesIndexRoute =
+  AuthenticatedUnidadesIndexRouteImport.update({
+    id: '/unidades/',
+    path: '/unidades/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedUnidadesUnidadeIdRoute =
+  AuthenticatedUnidadesUnidadeIdRouteImport.update({
+    id: '/unidades/$unidadeId',
+    path: '/unidades/$unidadeId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -117,7 +125,8 @@ export interface FileRoutesByFullPath {
   '/importar-faturas': typeof AuthenticatedImportarFaturasRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/simulador': typeof AuthenticatedSimuladorRoute
-  '/unidades': typeof AuthenticatedUnidadesRoute
+  '/unidades/$unidadeId': typeof AuthenticatedUnidadesUnidadeIdRoute
+  '/unidades/': typeof AuthenticatedUnidadesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -133,7 +142,8 @@ export interface FileRoutesByTo {
   '/importar-faturas': typeof AuthenticatedImportarFaturasRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/simulador': typeof AuthenticatedSimuladorRoute
-  '/unidades': typeof AuthenticatedUnidadesRoute
+  '/unidades/$unidadeId': typeof AuthenticatedUnidadesUnidadeIdRoute
+  '/unidades': typeof AuthenticatedUnidadesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -151,7 +161,8 @@ export interface FileRoutesById {
   '/_authenticated/importar-faturas': typeof AuthenticatedImportarFaturasRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/_authenticated/simulador': typeof AuthenticatedSimuladorRoute
-  '/_authenticated/unidades': typeof AuthenticatedUnidadesRoute
+  '/_authenticated/unidades/$unidadeId': typeof AuthenticatedUnidadesUnidadeIdRoute
+  '/_authenticated/unidades/': typeof AuthenticatedUnidadesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -169,7 +180,8 @@ export interface FileRouteTypes {
     | '/importar-faturas'
     | '/relatorios'
     | '/simulador'
-    | '/unidades'
+    | '/unidades/$unidadeId'
+    | '/unidades/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -185,6 +197,7 @@ export interface FileRouteTypes {
     | '/importar-faturas'
     | '/relatorios'
     | '/simulador'
+    | '/unidades/$unidadeId'
     | '/unidades'
   id:
     | '__root__'
@@ -202,7 +215,8 @@ export interface FileRouteTypes {
     | '/_authenticated/importar-faturas'
     | '/_authenticated/relatorios'
     | '/_authenticated/simulador'
-    | '/_authenticated/unidades'
+    | '/_authenticated/unidades/$unidadeId'
+    | '/_authenticated/unidades/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -311,11 +325,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSimuladorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/unidades': {
-      id: '/_authenticated/unidades'
+    '/_authenticated/unidades/': {
+      id: '/_authenticated/unidades/'
       path: '/unidades'
-      fullPath: '/unidades'
-      preLoaderRoute: typeof AuthenticatedUnidadesRouteImport
+      fullPath: '/unidades/'
+      preLoaderRoute: typeof AuthenticatedUnidadesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/unidades/$unidadeId': {
+      id: '/_authenticated/unidades/$unidadeId'
+      path: '/unidades/$unidadeId'
+      fullPath: '/unidades/$unidadeId'
+      preLoaderRoute: typeof AuthenticatedUnidadesUnidadeIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
   }
@@ -333,7 +354,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedImportarFaturasRoute: typeof AuthenticatedImportarFaturasRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
   AuthenticatedSimuladorRoute: typeof AuthenticatedSimuladorRoute
-  AuthenticatedUnidadesRoute: typeof AuthenticatedUnidadesRoute
+  AuthenticatedUnidadesUnidadeIdRoute: typeof AuthenticatedUnidadesUnidadeIdRoute
+  AuthenticatedUnidadesIndexRoute: typeof AuthenticatedUnidadesIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -348,7 +370,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedImportarFaturasRoute: AuthenticatedImportarFaturasRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
   AuthenticatedSimuladorRoute: AuthenticatedSimuladorRoute,
-  AuthenticatedUnidadesRoute: AuthenticatedUnidadesRoute,
+  AuthenticatedUnidadesUnidadeIdRoute: AuthenticatedUnidadesUnidadeIdRoute,
+  AuthenticatedUnidadesIndexRoute: AuthenticatedUnidadesIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

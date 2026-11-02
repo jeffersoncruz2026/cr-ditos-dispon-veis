@@ -51,7 +51,11 @@ export function useDashboardData() {
     queryKey: ["dashboard"],
     queryFn: async (): Promise<DashboardData> => {
       const [unidadesR, faturasR, geracaoR, creditosR, alertasR, usinasR] = await Promise.all([
-        supabase.from("unidades_consumidoras").select("id, nome").eq("ativa", true).order("nome"),
+        supabase
+          .from("unidades_consumidoras")
+          .select("id, nome")
+          .neq("situacao", "inativa")
+          .order("created_at"),
         supabase
           .from("faturas")
           .select("unidade_id, mes_referencia, consumo_kwh, valor_total, economia_estimada"),
