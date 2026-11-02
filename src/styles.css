@@ -42,6 +42,8 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
@@ -87,11 +89,15 @@
   --border: oklch(0.92 0.01 250);
   --input: oklch(0.92 0.01 250);
   --ring: oklch(0.64 0.15 163);
-  --chart-1: oklch(0.64 0.15 163);
-  --chart-2: oklch(0.29 0.07 258);
-  --chart-3: oklch(0.55 0.12 240);
-  --chart-4: oklch(0.8 0.15 85);
+  /* Paleta categórica validada (CVD/contraste) — ordem fixa, nunca reciclada. */
+  --chart-1: oklch(0.622 0.133 162.3); /* esmeralda — geração */
+  --chart-2: oklch(0.516 0.198 264.2); /* azul — consumo */
+  --chart-3: oklch(0.666 0.157 58.3); /* âmbar */
+  --chart-4: oklch(0.558 0.252 302.3); /* violeta */
   --chart-5: oklch(0.72 0.1 190);
+  --chart-grid: oklch(0.92 0.01 250);
+  --warning: oklch(0.77 0.16 75);
+  --warning-foreground: oklch(0.3 0.07 60);
   --sidebar: oklch(0.21 0.05 258);
   --sidebar-foreground: oklch(0.86 0.02 250);
   --sidebar-primary: oklch(0.64 0.15 163);
@@ -147,11 +153,24 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
   }
 }
 
 @utility bg-brand {
   background-image: var(--gradient-brand);
+}
+@utility bg-grid {
+  background-image:
+    linear-gradient(oklch(1 0 0 / 6%) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(1 0 0 / 6%) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
 @utility shadow-card {
   box-shadow: var(--shadow-card);
