@@ -29,7 +29,11 @@ function Layout() {
     );
   }
 
-  if (!access.authorized) return <AcessoPendente email={user.email ?? ""} erro={access.isError} />;
+  if (!access.authorized) {
+    const code = (access.error as { code?: string } | null)?.code;
+    const migracao = code === "PGRST205" || code === "42P01";
+    return <AcessoPendente email={user.email ?? ""} erro={access.isError} migracao={migracao} />;
+  }
 
   return (
     <SidebarProvider>
@@ -44,7 +48,15 @@ function Layout() {
   );
 }
 
-function AcessoPendente({ email, erro }: { email: string; erro: boolean }) {
+function AcessoPendente({
+  email,
+  erro,
+  migracao,
+}: {
+  email: string;
+  erro: boolean;
+  migracao: boolean;
+}) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <div className="w-full max-w-md rounded-3xl bg-card p-8 text-center shadow-card">
@@ -52,10 +64,16 @@ function AcessoPendente({ email, erro }: { email: string; erro: boolean }) {
           <ShieldAlert className="h-7 w-7" />
         </div>
         <h1 className="text-xl font-bold tracking-tight">
-          {erro ? "Não foi possível verificar seu acesso" : "Acesso aguardando autorização"}
+          {migracao
+            ? "Banco de dados desatualizado"
+            : erro
+              ? "Não foi possível verificar seu acesso"
+              : "Acesso aguardando autorização"}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          {erro ? (
+          {migracao ? (
+            "O banco de dados ainda não possui a estrutura de controle de acesso. Aplique as migrações pendentes em drizzle/migrations (0001 em diante) e tente novamente."
+          ) : erro ? (
             "Ocorreu um erro ao consultar suas permissões. Tente novamente em instantes."
           ) : (
             <>
