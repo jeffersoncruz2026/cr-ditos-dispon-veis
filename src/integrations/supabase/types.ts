@@ -14,7 +14,213 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      creditos: {
+        Row: {
+          created_at: string
+          creditos_recebidos_kwh: number | null
+          creditos_utilizados_kwh: number | null
+          id: string
+          mes_referencia: string
+          saldo_anterior_kwh: number | null
+          saldo_atual_kwh: number | null
+          unidade_id: string
+          user_id: string
+          validade: string | null
+        }
+        Insert: {
+          created_at?: string
+          creditos_recebidos_kwh?: number | null
+          creditos_utilizados_kwh?: number | null
+          id?: string
+          mes_referencia: string
+          saldo_anterior_kwh?: number | null
+          saldo_atual_kwh?: number | null
+          unidade_id: string
+          user_id?: string
+          validade?: string | null
+        }
+        Update: {
+          created_at?: string
+          creditos_recebidos_kwh?: number | null
+          creditos_utilizados_kwh?: number | null
+          id?: string
+          mes_referencia?: string
+          saldo_anterior_kwh?: number | null
+          saldo_atual_kwh?: number | null
+          unidade_id?: string
+          user_id?: string
+          validade?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creditos_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "unidades_consumidoras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      faturas: {
+        Row: {
+          arquivo_url: string | null
+          consumo_kwh: number | null
+          created_at: string
+          energia_compensada_kwh: number | null
+          energia_injetada_kwh: number | null
+          id: string
+          mes_referencia: string
+          unidade_id: string
+          user_id: string
+          valor_total: number | null
+          vencimento: string | null
+        }
+        Insert: {
+          arquivo_url?: string | null
+          consumo_kwh?: number | null
+          created_at?: string
+          energia_compensada_kwh?: number | null
+          energia_injetada_kwh?: number | null
+          id?: string
+          mes_referencia: string
+          unidade_id: string
+          user_id?: string
+          valor_total?: number | null
+          vencimento?: string | null
+        }
+        Update: {
+          arquivo_url?: string | null
+          consumo_kwh?: number | null
+          created_at?: string
+          energia_compensada_kwh?: number | null
+          energia_injetada_kwh?: number | null
+          id?: string
+          mes_referencia?: string
+          unidade_id?: string
+          user_id?: string
+          valor_total?: number | null
+          vencimento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faturas_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "unidades_consumidoras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      geracao_solar: {
+        Row: {
+          created_at: string
+          energia_injetada_kwh: number | null
+          geracao_kwh: number
+          id: string
+          mes_referencia: string
+          observacoes: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          energia_injetada_kwh?: number | null
+          geracao_kwh: number
+          id?: string
+          mes_referencia: string
+          observacoes?: string | null
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          energia_injetada_kwh?: number | null
+          geracao_kwh?: number
+          id?: string
+          mes_referencia?: string
+          observacoes?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      rateios: {
+        Row: {
+          created_at: string
+          id: string
+          observacoes: string | null
+          percentual: number
+          unidade_id: string
+          user_id: string
+          vigencia_inicio: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          observacoes?: string | null
+          percentual: number
+          unidade_id: string
+          user_id?: string
+          vigencia_inicio: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          observacoes?: string | null
+          percentual?: number
+          unidade_id?: string
+          user_id?: string
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rateios_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "unidades_consumidoras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      unidades_consumidoras: {
+        Row: {
+          ativa: boolean
+          created_at: string
+          endereco: string | null
+          geradora: boolean
+          id: string
+          nome: string
+          numero_uc: string
+          percentual_rateio: number | null
+          titular: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativa?: boolean
+          created_at?: string
+          endereco?: string | null
+          geradora?: boolean
+          id?: string
+          nome: string
+          numero_uc: string
+          percentual_rateio?: number | null
+          titular?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          ativa?: boolean
+          created_at?: string
+          endereco?: string | null
+          geradora?: boolean
+          id?: string
+          nome?: string
+          numero_uc?: string
+          percentual_rateio?: number | null
+          titular?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
