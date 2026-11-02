@@ -29,6 +29,13 @@
       "when": 1793750000000,
       "tag": "0003_modulo_unidades",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793800000000,
+      "tag": "0004_importacao_faturas",
+      "breakpoints": true
     }
   ]
 }

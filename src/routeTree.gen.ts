@@ -20,9 +20,10 @@ import { Route as AuthenticatedFechamentoRouteImport } from './routes/_authentic
 import { Route as AuthenticatedFinanceiroRouteImport } from './routes/_authenticated/financeiro'
 import { Route as AuthenticatedGeracaoRouteImport } from './routes/_authenticated/geracao'
 import { Route as AuthenticatedIaRouteImport } from './routes/_authenticated/ia'
-import { Route as AuthenticatedImportarFaturasRouteImport } from './routes/_authenticated/importar-faturas'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedSimuladorRouteImport } from './routes/_authenticated/simulador'
+import { Route as AuthenticatedImportarFaturasIndexRouteImport } from './routes/_authenticated/importar-faturas/index'
+import { Route as AuthenticatedImportarFaturasImportacaoIdRouteImport } from './routes/_authenticated/importar-faturas/$importacaoId'
 import { Route as AuthenticatedUnidadesIndexRouteImport } from './routes/_authenticated/unidades/index'
 import { Route as AuthenticatedUnidadesUnidadeIdRouteImport } from './routes/_authenticated/unidades/$unidadeId'
 
@@ -82,12 +83,6 @@ const AuthenticatedIaRoute = AuthenticatedIaRouteImport.update({
   path: '/ia',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedImportarFaturasRoute =
-  AuthenticatedImportarFaturasRouteImport.update({
-    id: '/importar-faturas',
-    path: '/importar-faturas',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
@@ -98,6 +93,18 @@ const AuthenticatedSimuladorRoute = AuthenticatedSimuladorRouteImport.update({
   path: '/simulador',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedImportarFaturasIndexRoute =
+  AuthenticatedImportarFaturasIndexRouteImport.update({
+    id: '/importar-faturas/',
+    path: '/importar-faturas/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedImportarFaturasImportacaoIdRoute =
+  AuthenticatedImportarFaturasImportacaoIdRouteImport.update({
+    id: '/importar-faturas/$importacaoId',
+    path: '/importar-faturas/$importacaoId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedUnidadesIndexRoute =
   AuthenticatedUnidadesIndexRouteImport.update({
     id: '/unidades/',
@@ -122,10 +129,11 @@ export interface FileRoutesByFullPath {
   '/financeiro': typeof AuthenticatedFinanceiroRoute
   '/geracao': typeof AuthenticatedGeracaoRoute
   '/ia': typeof AuthenticatedIaRoute
-  '/importar-faturas': typeof AuthenticatedImportarFaturasRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/simulador': typeof AuthenticatedSimuladorRoute
+  '/importar-faturas/$importacaoId': typeof AuthenticatedImportarFaturasImportacaoIdRoute
   '/unidades/$unidadeId': typeof AuthenticatedUnidadesUnidadeIdRoute
+  '/importar-faturas/': typeof AuthenticatedImportarFaturasIndexRoute
   '/unidades/': typeof AuthenticatedUnidadesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -139,10 +147,11 @@ export interface FileRoutesByTo {
   '/financeiro': typeof AuthenticatedFinanceiroRoute
   '/geracao': typeof AuthenticatedGeracaoRoute
   '/ia': typeof AuthenticatedIaRoute
-  '/importar-faturas': typeof AuthenticatedImportarFaturasRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/simulador': typeof AuthenticatedSimuladorRoute
+  '/importar-faturas/$importacaoId': typeof AuthenticatedImportarFaturasImportacaoIdRoute
   '/unidades/$unidadeId': typeof AuthenticatedUnidadesUnidadeIdRoute
+  '/importar-faturas': typeof AuthenticatedImportarFaturasIndexRoute
   '/unidades': typeof AuthenticatedUnidadesIndexRoute
 }
 export interface FileRoutesById {
@@ -158,10 +167,11 @@ export interface FileRoutesById {
   '/_authenticated/financeiro': typeof AuthenticatedFinanceiroRoute
   '/_authenticated/geracao': typeof AuthenticatedGeracaoRoute
   '/_authenticated/ia': typeof AuthenticatedIaRoute
-  '/_authenticated/importar-faturas': typeof AuthenticatedImportarFaturasRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/_authenticated/simulador': typeof AuthenticatedSimuladorRoute
+  '/_authenticated/importar-faturas/$importacaoId': typeof AuthenticatedImportarFaturasImportacaoIdRoute
   '/_authenticated/unidades/$unidadeId': typeof AuthenticatedUnidadesUnidadeIdRoute
+  '/_authenticated/importar-faturas/': typeof AuthenticatedImportarFaturasIndexRoute
   '/_authenticated/unidades/': typeof AuthenticatedUnidadesIndexRoute
 }
 export interface FileRouteTypes {
@@ -177,10 +187,11 @@ export interface FileRouteTypes {
     | '/financeiro'
     | '/geracao'
     | '/ia'
-    | '/importar-faturas'
     | '/relatorios'
     | '/simulador'
+    | '/importar-faturas/$importacaoId'
     | '/unidades/$unidadeId'
+    | '/importar-faturas/'
     | '/unidades/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -194,10 +205,11 @@ export interface FileRouteTypes {
     | '/financeiro'
     | '/geracao'
     | '/ia'
-    | '/importar-faturas'
     | '/relatorios'
     | '/simulador'
+    | '/importar-faturas/$importacaoId'
     | '/unidades/$unidadeId'
+    | '/importar-faturas'
     | '/unidades'
   id:
     | '__root__'
@@ -212,10 +224,11 @@ export interface FileRouteTypes {
     | '/_authenticated/financeiro'
     | '/_authenticated/geracao'
     | '/_authenticated/ia'
-    | '/_authenticated/importar-faturas'
     | '/_authenticated/relatorios'
     | '/_authenticated/simulador'
+    | '/_authenticated/importar-faturas/$importacaoId'
     | '/_authenticated/unidades/$unidadeId'
+    | '/_authenticated/importar-faturas/'
     | '/_authenticated/unidades/'
   fileRoutesById: FileRoutesById
 }
@@ -304,13 +317,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/importar-faturas': {
-      id: '/_authenticated/importar-faturas'
-      path: '/importar-faturas'
-      fullPath: '/importar-faturas'
-      preLoaderRoute: typeof AuthenticatedImportarFaturasRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/relatorios': {
       id: '/_authenticated/relatorios'
       path: '/relatorios'
@@ -323,6 +329,20 @@ declare module '@tanstack/react-router' {
       path: '/simulador'
       fullPath: '/simulador'
       preLoaderRoute: typeof AuthenticatedSimuladorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/importar-faturas/': {
+      id: '/_authenticated/importar-faturas/'
+      path: '/importar-faturas'
+      fullPath: '/importar-faturas/'
+      preLoaderRoute: typeof AuthenticatedImportarFaturasIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/importar-faturas/$importacaoId': {
+      id: '/_authenticated/importar-faturas/$importacaoId'
+      path: '/importar-faturas/$importacaoId'
+      fullPath: '/importar-faturas/$importacaoId'
+      preLoaderRoute: typeof AuthenticatedImportarFaturasImportacaoIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/unidades/': {
@@ -351,10 +371,11 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedFinanceiroRoute: typeof AuthenticatedFinanceiroRoute
   AuthenticatedGeracaoRoute: typeof AuthenticatedGeracaoRoute
   AuthenticatedIaRoute: typeof AuthenticatedIaRoute
-  AuthenticatedImportarFaturasRoute: typeof AuthenticatedImportarFaturasRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
   AuthenticatedSimuladorRoute: typeof AuthenticatedSimuladorRoute
+  AuthenticatedImportarFaturasImportacaoIdRoute: typeof AuthenticatedImportarFaturasImportacaoIdRoute
   AuthenticatedUnidadesUnidadeIdRoute: typeof AuthenticatedUnidadesUnidadeIdRoute
+  AuthenticatedImportarFaturasIndexRoute: typeof AuthenticatedImportarFaturasIndexRoute
   AuthenticatedUnidadesIndexRoute: typeof AuthenticatedUnidadesIndexRoute
 }
 
@@ -367,10 +388,13 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedFinanceiroRoute: AuthenticatedFinanceiroRoute,
   AuthenticatedGeracaoRoute: AuthenticatedGeracaoRoute,
   AuthenticatedIaRoute: AuthenticatedIaRoute,
-  AuthenticatedImportarFaturasRoute: AuthenticatedImportarFaturasRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
   AuthenticatedSimuladorRoute: AuthenticatedSimuladorRoute,
+  AuthenticatedImportarFaturasImportacaoIdRoute:
+    AuthenticatedImportarFaturasImportacaoIdRoute,
   AuthenticatedUnidadesUnidadeIdRoute: AuthenticatedUnidadesUnidadeIdRoute,
+  AuthenticatedImportarFaturasIndexRoute:
+    AuthenticatedImportarFaturasIndexRoute,
   AuthenticatedUnidadesIndexRoute: AuthenticatedUnidadesIndexRoute,
 }
 
