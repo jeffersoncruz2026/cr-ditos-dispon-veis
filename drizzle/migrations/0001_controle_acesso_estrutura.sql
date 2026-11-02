@@ -1,0 +1,239 @@
+-- SolarGest — Etapa 1: controle de acesso por papéis e estrutura de dados completa.
+--
+-- Modelo de segurança:
+--   * Os dados (unidades, faturas, geração, créditos, rateios...) são compartilhados
+--     entre os usuários AUTORIZADOS do sistema — não apenas visíveis ao criador.
+--   * Um usuário é autorizado quando possui ao menos um papel em public.user_roles.
+--   * Papéis: admin (tudo + gerencia usuários), operador (lê e grava dados),
+--     visualizador (somente leitura).
+--   * O primeiro usuário cadastrado torna-se admin automaticamente. Os demais
+--     ficam com acesso pendente até que um admin conceda um papel.
+
+-- ---------------------------------------------------------------------------
+-- Papéis e perfis
+-- ---------------------------------------------------------------------------
+CREATE TYPE public.app_role AS ENUM ('admin', 'operador', 'visualizador');
+
+CREATE TABLE public.perfis (
+  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  nome text,
+  email text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE public.user_roles (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  role public.app_role NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, role)
+);
+
+-- Funções SECURITY DEFINER evitam recursão de RLS ao consultar user_roles.
+CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role public.app_role)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = _user_id AND role = _role)
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_authorized(_user_id uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = _user_id)
+$$;
+
+CREATE OR REPLACE FUNCTION public.can_write(_user_id uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = _user_id AND role IN ('admin', 'operador')
+  )
+$$;
+
+-- Cria o perfil no cadastro; o primeiro usuário do sistema vira admin.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  INSERT INTO public.perfis (id, email, nome)
+  VALUES (NEW.id, NEW.email, COALESCE(NEW.raw_user_meta_data ->> 'nome', split_part(NEW.email, '@', 1)))
+  ON CONFLICT (id) DO NOTHING;
+
+  PERFORM pg_advisory_xact_lock(hashtext('solargest_first_admin'));
+  IF NOT EXISTS (SELECT 1 FROM public.user_roles WHERE role = 'admin') THEN
+    INSERT INTO public.user_roles (user_id, role) VALUES (NEW.id, 'admin');
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Usuários já existentes: cria perfis e promove o mais antigo a admin.
+INSERT INTO public.perfis (id, email, nome)
+SELECT u.id, u.email, split_part(u.email, '@', 1) FROM auth.users u
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.user_roles (user_id, role)
+SELECT u.id, 'admin' FROM auth.users u
+WHERE NOT EXISTS (SELECT 1 FROM public.user_roles WHERE role = 'admin')
+ORDER BY u.created_at LIMIT 1;
+
+-- ---------------------------------------------------------------------------
+-- updated_at automático
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Ajustes nas tabelas existentes
+-- ---------------------------------------------------------------------------
+ALTER TABLE public.unidades_consumidoras
+  ADD COLUMN classe text,
+  ADD COLUMN tipo_ligacao text CHECK (tipo_ligacao IN ('monofasico', 'bifasico', 'trifasico')),
+  ADD COLUMN cidade text,
+  ADD COLUMN observacoes text,
+  ADD CONSTRAINT unidades_numero_uc_key UNIQUE (numero_uc),
+  ADD CONSTRAINT unidades_percentual_check CHECK (percentual_rateio BETWEEN 0 AND 100);
+
+ALTER TABLE public.faturas
+  ADD COLUMN status text NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'paga', 'vencida')),
+  ADD COLUMN tarifa_kwh numeric(10,6),
+  ADD COLUMN bandeira_tarifaria text,
+  ADD COLUMN contrib_iluminacao numeric(12,2),
+  ADD COLUMN economia_estimada numeric(12,2),
+  ADD COLUMN updated_at timestamptz NOT NULL DEFAULT now(),
+  ADD CONSTRAINT faturas_unidade_mes_key UNIQUE (unidade_id, mes_referencia);
+
+ALTER TABLE public.creditos
+  ADD COLUMN updated_at timestamptz NOT NULL DEFAULT now(),
+  ADD CONSTRAINT creditos_unidade_mes_key UNIQUE (unidade_id, mes_referencia);
+
+ALTER TABLE public.rateios
+  ADD COLUMN vigencia_fim date,
+  ADD COLUMN updated_at timestamptz NOT NULL DEFAULT now(),
+  ADD CONSTRAINT rateios_percentual_check CHECK (percentual BETWEEN 0 AND 100);
+
+-- ---------------------------------------------------------------------------
+-- Novas tabelas
+-- ---------------------------------------------------------------------------
+CREATE TABLE public.usinas (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL DEFAULT auth.uid(),
+  nome text NOT NULL,
+  unidade_geradora_id uuid REFERENCES public.unidades_consumidoras(id) ON DELETE SET NULL,
+  potencia_kwp numeric(10,2),
+  quantidade_modulos integer,
+  inversor text,
+  data_instalacao date,
+  ativa boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.geracao_solar
+  ADD COLUMN usina_id uuid REFERENCES public.usinas(id) ON DELETE CASCADE,
+  ADD COLUMN updated_at timestamptz NOT NULL DEFAULT now();
+
+CREATE TABLE public.fechamentos_mensais (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL DEFAULT auth.uid(),
+  mes_referencia date NOT NULL UNIQUE,
+  status text NOT NULL DEFAULT 'aberto' CHECK (status IN ('aberto', 'em_revisao', 'fechado')),
+  fechado_em timestamptz,
+  observacoes text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE public.alertas (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL DEFAULT auth.uid(),
+  unidade_id uuid REFERENCES public.unidades_consumidoras(id) ON DELETE CASCADE,
+  tipo text NOT NULL CHECK (tipo IN ('consumo', 'creditos', 'fatura', 'geracao', 'sistema')),
+  severidade text NOT NULL DEFAULT 'info' CHECK (severidade IN ('info', 'atencao', 'critico')),
+  titulo text NOT NULL,
+  mensagem text,
+  mes_referencia date,
+  resolvido boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX faturas_mes_idx ON public.faturas (mes_referencia);
+CREATE INDEX creditos_mes_idx ON public.creditos (mes_referencia);
+CREATE INDEX geracao_mes_idx ON public.geracao_solar (mes_referencia);
+CREATE INDEX rateios_unidade_idx ON public.rateios (unidade_id, vigencia_inicio);
+CREATE INDEX alertas_abertos_idx ON public.alertas (resolvido, created_at);
+
+-- ---------------------------------------------------------------------------
+-- RLS: dados compartilhados entre usuários autorizados
+-- ---------------------------------------------------------------------------
+DO $$ DECLARE t text; BEGIN
+  -- remove as políticas "somente o dono" da versão anterior
+  FOREACH t IN ARRAY ARRAY['unidades_consumidoras','faturas','geracao_solar','creditos','rateios'] LOOP
+    EXECUTE format('DROP POLICY IF EXISTS "own_select" ON public.%I', t);
+    EXECUTE format('DROP POLICY IF EXISTS "own_insert" ON public.%I', t);
+    EXECUTE format('DROP POLICY IF EXISTS "own_update" ON public.%I', t);
+    EXECUTE format('DROP POLICY IF EXISTS "own_delete" ON public.%I', t);
+  END LOOP;
+
+  FOREACH t IN ARRAY ARRAY['unidades_consumidoras','faturas','geracao_solar','creditos','rateios',
+                           'usinas','fechamentos_mensais','alertas'] LOOP
+    EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON public.%I TO authenticated', t);
+    EXECUTE format('GRANT ALL ON public.%I TO service_role', t);
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('CREATE POLICY "autorizados_leem" ON public.%I FOR SELECT TO authenticated USING (public.is_authorized(auth.uid()))', t);
+    EXECUTE format('CREATE POLICY "editores_inserem" ON public.%I FOR INSERT TO authenticated WITH CHECK (public.can_write(auth.uid()))', t);
+    EXECUTE format('CREATE POLICY "editores_atualizam" ON public.%I FOR UPDATE TO authenticated USING (public.can_write(auth.uid())) WITH CHECK (public.can_write(auth.uid()))', t);
+    EXECUTE format('CREATE POLICY "editores_excluem" ON public.%I FOR DELETE TO authenticated USING (public.can_write(auth.uid()))', t);
+  END LOOP;
+
+  FOREACH t IN ARRAY ARRAY['unidades_consumidoras','faturas','geracao_solar','creditos','rateios',
+                           'usinas','fechamentos_mensais','alertas','perfis'] LOOP
+    EXECUTE format('CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.set_updated_at()', t);
+  END LOOP;
+END $$;
+
+-- perfis: cada um vê/edita o próprio; admins veem todos.
+GRANT SELECT, UPDATE ON public.perfis TO authenticated;
+GRANT ALL ON public.perfis TO service_role;
+ALTER TABLE public.perfis ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "perfil_proprio_ou_admin" ON public.perfis FOR SELECT TO authenticated
+  USING (id = auth.uid() OR public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "perfil_proprio_atualiza" ON public.perfis FOR UPDATE TO authenticated
+  USING (id = auth.uid()) WITH CHECK (id = auth.uid());
+
+-- user_roles: cada um vê os próprios papéis; somente admins concedem/revogam.
+GRANT SELECT, INSERT, DELETE ON public.user_roles TO authenticated;
+GRANT ALL ON public.user_roles TO service_role;
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "papeis_proprios_ou_admin" ON public.user_roles FOR SELECT TO authenticated
+  USING (user_id = auth.uid() OR public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "admin_concede" ON public.user_roles FOR INSERT TO authenticated
+  WITH CHECK (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "admin_revoga" ON public.user_roles FOR DELETE TO authenticated
+  USING (public.has_role(auth.uid(), 'admin') AND user_id <> auth.uid());
+
+GRANT EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_authorized(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.can_write(uuid) TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Armazenamento privado para os PDFs das faturas (usado em etapa futura)
+-- ---------------------------------------------------------------------------
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('faturas', 'faturas', false)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "faturas_pdf_leitura" ON storage.objects FOR SELECT TO authenticated
+  USING (bucket_id = 'faturas' AND public.is_authorized(auth.uid()));
+CREATE POLICY "faturas_pdf_upload" ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'faturas' AND public.can_write(auth.uid()));
+CREATE POLICY "faturas_pdf_exclusao" ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'faturas' AND public.can_write(auth.uid()));
