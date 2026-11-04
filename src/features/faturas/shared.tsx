@@ -28,16 +28,20 @@ export function StatusImportacao({ status }: { status: string }) {
   );
 }
 
-export function MetodoBadge({ metodo }: { metodo: string | null }) {
+export function MetodoBadge({ metodo, arquivo }: { metodo: string | null; arquivo?: string }) {
   if (!metodo) return null;
+  // Importações por XML são gravadas com o método "basica"; a origem é identificada pelo arquivo.
+  const xml = !!arquivo && arquivo.toLowerCase().endsWith(".xml");
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-        metodo === "ia" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+        metodo === "ia" || xml
+          ? "bg-primary text-primary-foreground"
+          : "bg-muted text-muted-foreground",
       )}
     >
-      {metodo === "ia" ? "IA" : "Básica"}
+      {xml ? "XML" : metodo === "ia" ? "IA" : "Básica"}
     </span>
   );
 }

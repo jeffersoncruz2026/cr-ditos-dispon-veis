@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json, Tables } from "@/integrations/supabase/types";
 import { extrairFaturaIA } from "./extracao.functions";
-import { extrairTextoPdf, sha256Hex } from "./pdf-texto";
+import { sha256Hex } from "./pdf-texto";
+import { decodificarXml, ehXml, lerXmlNf3e, XmlInvalidoError } from "./xml-nf3e";
 import {
   extrairBasico,
   gerarAvisos,
@@ -22,7 +23,7 @@ export const faturasKeys = {
   competencias: () => [...faturasKeys.all, "competencias"] as const,
 };
 
-export const TAMANHO_MAXIMO = 20 * 1024 * 1024;
+export const TAMANHO_MAXIMO = 5 * 1024 * 1024;
 
 export function useImportacoes() {
   return useQuery({
@@ -91,10 +92,11 @@ export function useUnidadesRef() {
 export async function analisarExtracao(args: {
   texto: string;
   dados: DadosFatura;
-  metodo: "ia" | "basica";
+  metodo: "ia" | "basica" | "xml";
   unidades: UnidadeRef[];
   erroIA?: string | null;
   observacoesIA?: string[];
+  avisosExtras?: Aviso[];
 }) {
   const { unidade, ambigua } = identificarUnidade(
     args.texto,
@@ -127,6 +129,7 @@ export async function analisarExtracao(args: {
       erroIA: args.erroIA ?? null,
     }),
     ...(args.observacoesIA ?? []).map((m) => ({ nivel: "info" as const, mensagem: `IA: ${m}` })),
+    ...(args.avisosExtras ?? []),
   ];
   return { dados, unidadeId: unidade?.id ?? null, avisos };
 }
@@ -175,6 +178,40 @@ async function extrairEGravar(importacaoId: string, texto: string, unidades: Uni
   return { metodo, avisos: analise.avisos };
 }
 
+/**
+ * Lê o XML da NF3e e grava o resultado na importação. A leitura é determinística (tags do XML),
+ * então não há IA envolvida. No banco o método fica "basica" (restrição atual da coluna) e a
+ * origem é registrada em `dados_extraidos._origem`.
+ */
+async function lerEGravarXml(importacaoId: string, xml: string, unidades: UnidadeRef[]) {
+  const leitura = lerXmlNf3e(xml);
+  const analise = await analisarExtracao({
+    texto: leitura.texto,
+    dados: leitura.dados,
+    metodo: "xml",
+    unidades,
+    avisosExtras: leitura.avisos,
+  });
+  const { error } = await supabase
+    .from("importacoes_faturas")
+    .update({
+      status: "aguardando_conferencia",
+      metodo_extracao: "basica",
+      dados_extraidos: {
+        ...analise.dados,
+        _origem: "xml_nf3e",
+        _chave_nf3e: leitura.chave,
+      } as unknown as Json,
+      avisos: analise.avisos as unknown as Json,
+      unidade_id: analise.unidadeId,
+      mes_referencia: (analise.dados.mes_referencia as string | null) ?? null,
+      erro: null,
+    })
+    .eq("id", importacaoId);
+  if (error) throw error;
+  return { metodo: "xml" as const, avisos: analise.avisos };
+}
+
 export type EtapaArquivo =
   "verificando" | "enviando" | "lendo" | "extraindo" | "concluido" | "duplicado" | "erro";
 
@@ -182,22 +219,25 @@ export type ResultadoArquivo = {
   etapa: EtapaArquivo;
   mensagem?: string;
   importacaoId?: string;
-  metodo?: "ia" | "basica";
+  metodo?: "ia" | "basica" | "xml";
   avisos?: Aviso[];
 };
 
-/** Pipeline completo de um PDF: duplicidade → armazenamento privado → texto → extração → fila de conferência. */
+/** Pipeline completo de um XML de NF3e: duplicidade → leitura → armazenamento privado → fila de conferência. */
 export async function processarArquivo(
   arquivo: File,
   unidades: UnidadeRef[],
   progresso: (r: ResultadoArquivo) => void,
 ): Promise<ResultadoArquivo> {
   try {
-    if (arquivo.type !== "application/pdf" && !arquivo.name.toLowerCase().endsWith(".pdf")) {
-      return { etapa: "erro", mensagem: "O arquivo não é um PDF." };
+    if (!/xml/.test(arquivo.type) && !arquivo.name.toLowerCase().endsWith(".xml")) {
+      return {
+        etapa: "erro",
+        mensagem: "Envie o XML da nota fiscal (NF3e). Arquivos PDF não são mais aceitos.",
+      };
     }
     if (arquivo.size > TAMANHO_MAXIMO) {
-      return { etapa: "erro", mensagem: "O arquivo excede 20 MB." };
+      return { etapa: "erro", mensagem: "O arquivo excede 5 MB." };
     }
 
     progresso({ etapa: "verificando" });
@@ -222,28 +262,34 @@ export async function processarArquivo(
         importacaoId: ativa.data.id,
         mensagem:
           ativa.data.status === "importada"
-            ? "Este PDF já foi importado."
-            : "Este PDF já está na fila de importações.",
+            ? "Este XML já foi importado."
+            : "Este XML já está na fila de importações.",
       };
     }
     if ((importada.count ?? 0) > 0)
-      return { etapa: "duplicado", mensagem: "Este PDF já foi importado." };
+      return { etapa: "duplicado", mensagem: "Este XML já foi importado." };
+
+    // Lê antes de enviar: um arquivo que não é NF3e não chega ao armazenamento.
+    progresso({ etapa: "lendo" });
+    const xml = decodificarXml(buffer);
+    try {
+      lerXmlNf3e(xml);
+    } catch (e) {
+      if (e instanceof XmlInvalidoError) return { etapa: "erro", mensagem: e.message };
+      throw e;
+    }
 
     progresso({ etapa: "enviando" });
-    const caminho = `${new Date().getFullYear()}/${hash}.pdf`;
+    const caminho = `${new Date().getFullYear()}/${hash}.xml`;
     const up = await supabase.storage
       .from("faturas")
-      .upload(caminho, buffer, { contentType: "application/pdf", upsert: false });
-    // Mesmo hash = mesmo conteúdo: se o objeto já existe (importação descartada antes), reutiliza.
-    if (up.error && !/exist|duplicate/i.test(up.error.message)) throw up.error;
-
-    progresso({ etapa: "lendo" });
-    let texto = "";
-    try {
-      texto = (await extrairTextoPdf(buffer)).texto;
-    } catch {
-      texto = "";
-    }
+      .upload(caminho, new Blob([buffer], { type: "text/xml" }), {
+        contentType: "text/xml",
+        upsert: false,
+      });
+    // O conteúdo integral do XML também fica em `texto_extraido`, então uma falha no
+    // armazenamento do arquivo (ex.: bucket restrito a PDF) não impede a importação.
+    const armazenado = !up.error || /exist|duplicate/i.test(up.error.message);
 
     const ins = await supabase
       .from("importacoes_faturas")
@@ -252,26 +298,34 @@ export async function processarArquivo(
         arquivo_path: caminho,
         arquivo_hash: hash,
         arquivo_tamanho: arquivo.size,
-        texto_extraido: texto,
+        texto_extraido: xml,
         status: "processando",
       })
       .select("id")
       .single();
     if (ins.error) {
       if (ins.error.code === "23505")
-        return { etapa: "duplicado", mensagem: "Este PDF já está na fila." };
+        return { etapa: "duplicado", mensagem: "Este XML já está na fila." };
       throw ins.error;
     }
     const importacaoId = ins.data.id;
 
     progresso({ etapa: "extraindo", importacaoId });
     try {
-      const r = await extrairEGravar(importacaoId, texto, unidades);
-      return { etapa: "concluido", importacaoId, metodo: r.metodo, avisos: r.avisos };
+      const r = await lerEGravarXml(importacaoId, xml, unidades);
+      return {
+        etapa: "concluido",
+        importacaoId,
+        metodo: r.metodo,
+        avisos: r.avisos,
+        ...(armazenado
+          ? {}
+          : { mensagem: "Pronto para conferência (arquivo original não armazenado)" }),
+      };
     } catch (e) {
       await supabase
         .from("importacoes_faturas")
-        .update({ status: "erro", erro: e instanceof Error ? e.message : "Falha na extração." })
+        .update({ status: "erro", erro: e instanceof Error ? e.message : "Falha na leitura." })
         .eq("id", importacaoId);
       throw e;
     }
@@ -304,7 +358,11 @@ export function useReprocessar() {
         .from("importacoes_faturas")
         .update({ status: "processando" })
         .eq("id", importacao.id);
-      return extrairEGravar(importacao.id, importacao.texto_extraido ?? "", unidades);
+      const texto = importacao.texto_extraido ?? "";
+      // Importações antigas (PDF) continuam usando a extração anterior.
+      return ehXml(texto)
+        ? lerEGravarXml(importacao.id, texto, unidades)
+        : extrairEGravar(importacao.id, texto, unidades);
     },
     onSettled: invalidar,
   });

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import {
   CalendarRange,
@@ -7,12 +7,12 @@ import {
   CloudUpload,
   Copy,
   Eye,
+  FileCode2,
   FileText,
   History,
   Loader2,
   MoreHorizontal,
   ScanSearch,
-  Sparkles,
   Trash2,
   XCircle,
 } from "lucide-react";
@@ -56,7 +56,6 @@ import {
   useUnidadesRef,
   type ResultadoArquivo,
 } from "@/features/faturas/api";
-import { statusIA } from "@/features/faturas/extracao.functions";
 import {
   listaAvisos,
   MetodoBadge,
@@ -75,7 +74,7 @@ type ItemFila = { chave: string; nome: string; tamanho: number; resultado: Resul
 const ETAPAS: Record<ResultadoArquivo["etapa"], string> = {
   verificando: "Verificando duplicidade",
   enviando: "Enviando para armazenamento privado",
-  lendo: "Lendo o texto do PDF",
+  lendo: "Lendo o XML da nota fiscal",
   extraindo: "Extraindo dados",
   concluido: "Pronto para conferência",
   duplicado: "Duplicado",
@@ -88,11 +87,6 @@ function ImportarFaturas() {
   const unidades = useUnidadesRef();
   const importacoes = useImportacoes();
   const competencias = useCompetencias();
-  const ia = useQuery({
-    queryKey: ["status-ia"],
-    queryFn: () => statusIA(),
-    staleTime: 5 * 60_000,
-  });
   const descartar = useDescartar();
   const [fila, setFila] = useState<ItemFila[]>([]);
   const [processando, setProcessando] = useState(false);
@@ -138,29 +132,13 @@ function ImportarFaturas() {
       <PageHeader
         eyebrow="Operação"
         title="Importar Faturas"
-        description="Envie as faturas mensais da Equatorial Goiás em PDF. Os dados são extraídos automaticamente e só entram no sistema após a sua conferência."
+        description="Envie o XML da nota fiscal de energia (NF3e) das faturas mensais da Equatorial Goiás. Os dados são lidos diretamente do XML e só entram no sistema após a sua conferência."
       >
-        <div
-          className={cn(
-            "flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-sm shadow-card",
-            ia.data && !ia.data.configurada && "border-warning/40",
-          )}
-        >
-          <Sparkles
-            className={cn(
-              "h-4 w-4",
-              ia.data?.configurada ? "text-success" : "text-muted-foreground",
-            )}
-          />
-          {ia.isLoading ? (
-            <span className="text-muted-foreground">Verificando IA…</span>
-          ) : ia.data?.configurada ? (
-            <span>
-              Extração por IA <span className="font-semibold">ativa</span>
-            </span>
-          ) : (
-            <span className="text-warning-foreground">IA não configurada · extração básica</span>
-          )}
+        <div className="flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-sm shadow-card">
+          <FileCode2 className="h-4 w-4 text-success" />
+          <span>
+            Leitura do <span className="font-semibold">XML NF3e</span>
+          </span>
         </div>
       </PageHeader>
 
@@ -185,10 +163,10 @@ function ImportarFaturas() {
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-card text-accent-foreground shadow-card ring-1 ring-border">
               <CloudUpload className="h-6 w-6" />
             </div>
-            <p className="text-sm font-semibold">Arraste as faturas em PDF para cá</p>
+            <p className="text-sm font-semibold">Arraste os XMLs das faturas (NF3e) para cá</p>
             <p className="mt-1 max-w-md text-xs text-muted-foreground">
-              Uma ou várias de uma vez · até 20 MB cada · armazenadas em ambiente privado. A unidade
-              é identificada pelo número da UC.
+              Um ou vários de uma vez · até 5 MB cada · armazenados em ambiente privado. A unidade é
+              identificada pelo número da UC.
             </p>
             <Button
               className="mt-5"
@@ -200,15 +178,15 @@ function ImportarFaturas() {
               ) : (
                 <FileText className="h-4 w-4" />
               )}
-              {processando ? "Processando…" : "Selecionar PDFs"}
+              {processando ? "Processando…" : "Selecionar XMLs"}
             </Button>
             <input
               ref={input}
               type="file"
-              accept="application/pdf,.pdf"
+              accept=".xml,text/xml,application/xml"
               multiple
               className="hidden"
-              aria-label="Selecionar faturas em PDF"
+              aria-label="Selecionar XMLs das faturas"
               onChange={(e) => e.target.files && void receber(e.target.files)}
             />
           </div>
@@ -253,7 +231,7 @@ function ImportarFaturas() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="truncate text-sm font-semibold">{i.arquivo_nome}</p>
-                        <MetodoBadge metodo={i.metodo_extracao} />
+                        <MetodoBadge metodo={i.metodo_extracao} arquivo={i.arquivo_nome} />
                       </div>
                       <p className="truncate text-xs text-muted-foreground">
                         {nomeUnidade(i.unidade_id) ?? "Unidade não identificada"} ·{" "}
@@ -328,7 +306,7 @@ function ImportarFaturas() {
                     <TableCell className="pl-4">
                       <div className="flex items-center gap-2">
                         <p className="max-w-[260px] truncate font-medium">{i.arquivo_nome}</p>
-                        <MetodoBadge metodo={i.metodo_extracao} />
+                        <MetodoBadge metodo={i.metodo_extracao} arquivo={i.arquivo_nome} />
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {tamanhoArquivo(i.arquivo_tamanho)}
@@ -474,6 +452,7 @@ function ItemProcessamento({ item }: { item: ItemFila }) {
         <p className="truncate text-xs text-muted-foreground">
           {r.mensagem ?? ETAPAS[r.etapa]}
           {r.etapa === "concluido" && r.metodo === "basica" && " · extração básica"}
+          {r.etapa === "concluido" && r.metodo === "xml" && " · lido do XML"}
         </p>
       </div>
       {final && r.importacaoId && r.etapa !== "erro" && (
