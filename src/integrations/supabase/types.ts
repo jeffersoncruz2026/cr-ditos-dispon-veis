@@ -126,59 +126,137 @@ export type Database = {
       }
       faturas: {
         Row: {
+          arquivo_hash: string | null
+          arquivo_path: string | null
           arquivo_url: string | null
           bandeira_tarifaria: string | null
+          cofins: number | null
           consumo_kwh: number | null
           contrib_iluminacao: number | null
           created_at: string
+          creditos_a_expirar_data: string | null
+          creditos_a_expirar_kwh: number | null
+          creditos_recebidos_kwh: number | null
+          creditos_utilizados_kwh: number | null
           economia_estimada: number | null
+          encargos_gd: number | null
           energia_compensada_kwh: number | null
           energia_injetada_kwh: number | null
+          energia_nao_compensada_kwh: number | null
+          excedente_recebido_kwh: number | null
+          extracao: Json | null
+          geracao_ciclo_kwh: number | null
+          icms: number | null
           id: string
+          leitura_anterior: number | null
+          leitura_anterior_data: string | null
+          leitura_atual: number | null
+          leitura_atual_data: string | null
           mes_referencia: string
+          percentual_rateio: number | null
+          pis: number | null
+          proxima_leitura_data: string | null
+          saldo_creditos_kwh: number | null
           status: string
           tarifa_kwh: number | null
+          titular: string | null
+          tributos_total: number | null
+          uc_fatura: string | null
           unidade_id: string
           updated_at: string
           user_id: string
+          valor_bandeiras: number | null
+          valor_energia: number | null
           valor_total: number | null
           vencimento: string | null
         }
         Insert: {
+          arquivo_hash?: string | null
+          arquivo_path?: string | null
           arquivo_url?: string | null
           bandeira_tarifaria?: string | null
+          cofins?: number | null
           consumo_kwh?: number | null
           contrib_iluminacao?: number | null
           created_at?: string
+          creditos_a_expirar_data?: string | null
+          creditos_a_expirar_kwh?: number | null
+          creditos_recebidos_kwh?: number | null
+          creditos_utilizados_kwh?: number | null
           economia_estimada?: number | null
+          encargos_gd?: number | null
           energia_compensada_kwh?: number | null
           energia_injetada_kwh?: number | null
+          energia_nao_compensada_kwh?: number | null
+          excedente_recebido_kwh?: number | null
+          extracao?: Json | null
+          geracao_ciclo_kwh?: number | null
+          icms?: number | null
           id?: string
+          leitura_anterior?: number | null
+          leitura_anterior_data?: string | null
+          leitura_atual?: number | null
+          leitura_atual_data?: string | null
           mes_referencia: string
+          percentual_rateio?: number | null
+          pis?: number | null
+          proxima_leitura_data?: string | null
+          saldo_creditos_kwh?: number | null
           status?: string
           tarifa_kwh?: number | null
+          titular?: string | null
+          tributos_total?: number | null
+          uc_fatura?: string | null
           unidade_id: string
           updated_at?: string
           user_id?: string
+          valor_bandeiras?: number | null
+          valor_energia?: number | null
           valor_total?: number | null
           vencimento?: string | null
         }
         Update: {
+          arquivo_hash?: string | null
+          arquivo_path?: string | null
           arquivo_url?: string | null
           bandeira_tarifaria?: string | null
+          cofins?: number | null
           consumo_kwh?: number | null
           contrib_iluminacao?: number | null
           created_at?: string
+          creditos_a_expirar_data?: string | null
+          creditos_a_expirar_kwh?: number | null
+          creditos_recebidos_kwh?: number | null
+          creditos_utilizados_kwh?: number | null
           economia_estimada?: number | null
+          encargos_gd?: number | null
           energia_compensada_kwh?: number | null
           energia_injetada_kwh?: number | null
+          energia_nao_compensada_kwh?: number | null
+          excedente_recebido_kwh?: number | null
+          extracao?: Json | null
+          geracao_ciclo_kwh?: number | null
+          icms?: number | null
           id?: string
+          leitura_anterior?: number | null
+          leitura_anterior_data?: string | null
+          leitura_atual?: number | null
+          leitura_atual_data?: string | null
           mes_referencia?: string
+          percentual_rateio?: number | null
+          pis?: number | null
+          proxima_leitura_data?: string | null
+          saldo_creditos_kwh?: number | null
           status?: string
           tarifa_kwh?: number | null
+          titular?: string | null
+          tributos_total?: number | null
+          uc_fatura?: string | null
           unidade_id?: string
           updated_at?: string
           user_id?: string
+          valor_bandeiras?: number | null
+          valor_energia?: number | null
           valor_total?: number | null
           vencimento?: string | null
         }
@@ -265,6 +343,81 @@ export type Database = {
             columns: ["usina_id"]
             isOneToOne: false
             referencedRelation: "usinas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      importacoes_faturas: {
+        Row: {
+          arquivo_hash: string
+          arquivo_nome: string
+          arquivo_path: string
+          arquivo_tamanho: number | null
+          avisos: Json | null
+          created_at: string
+          dados_extraidos: Json | null
+          erro: string | null
+          fatura_id: string | null
+          id: string
+          mes_referencia: string | null
+          metodo_extracao: string | null
+          status: string
+          texto_extraido: string | null
+          unidade_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          arquivo_hash: string
+          arquivo_nome: string
+          arquivo_path: string
+          arquivo_tamanho?: number | null
+          avisos?: Json | null
+          created_at?: string
+          dados_extraidos?: Json | null
+          erro?: string | null
+          fatura_id?: string | null
+          id?: string
+          mes_referencia?: string | null
+          metodo_extracao?: string | null
+          status?: string
+          texto_extraido?: string | null
+          unidade_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          arquivo_hash?: string
+          arquivo_nome?: string
+          arquivo_path?: string
+          arquivo_tamanho?: number | null
+          avisos?: Json | null
+          created_at?: string
+          dados_extraidos?: Json | null
+          erro?: string | null
+          fatura_id?: string | null
+          id?: string
+          mes_referencia?: string | null
+          metodo_extracao?: string | null
+          status?: string
+          texto_extraido?: string | null
+          unidade_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "importacoes_faturas_fatura_id_fkey"
+            columns: ["fatura_id"]
+            isOneToOne: false
+            referencedRelation: "faturas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "importacoes_faturas_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "unidades_consumidoras"
             referencedColumns: ["id"]
           },
         ]
@@ -525,6 +678,10 @@ export type Database = {
         Returns: string
       }
       can_write: { Args: { _user_id: string }; Returns: boolean }
+      confirmar_importacao_fatura: {
+        Args: { _dados: Json; _importacao_id: string; _unidade_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -50,6 +50,13 @@
       "when": 1793800000002,
       "tag": "0006_restaurar_modulo_unidades",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793800000003,
+      "tag": "0007_restaurar_importacao_faturas",
+      "breakpoints": true
     }
   ]
 }
