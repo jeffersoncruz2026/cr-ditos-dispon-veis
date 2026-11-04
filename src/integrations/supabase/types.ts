@@ -69,6 +69,7 @@ export type Database = {
           created_at: string
           creditos_recebidos_kwh: number | null
           creditos_utilizados_kwh: number | null
+          fatura_id: string | null
           id: string
           mes_referencia: string
           saldo_anterior_kwh: number | null
@@ -82,6 +83,7 @@ export type Database = {
           created_at?: string
           creditos_recebidos_kwh?: number | null
           creditos_utilizados_kwh?: number | null
+          fatura_id?: string | null
           id?: string
           mes_referencia: string
           saldo_anterior_kwh?: number | null
@@ -95,6 +97,7 @@ export type Database = {
           created_at?: string
           creditos_recebidos_kwh?: number | null
           creditos_utilizados_kwh?: number | null
+          fatura_id?: string | null
           id?: string
           mes_referencia?: string
           saldo_anterior_kwh?: number | null
@@ -105,6 +108,13 @@ export type Database = {
           validade?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "creditos_fatura_id_fkey"
+            columns: ["fatura_id"]
+            isOneToOne: false
+            referencedRelation: "faturas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "creditos_unidade_id_fkey"
             columns: ["unidade_id"]
@@ -283,8 +293,39 @@ export type Database = {
         }
         Relationships: []
       }
+      rateio_configuracoes: {
+        Row: {
+          created_at: string
+          id: string
+          observacoes: string | null
+          updated_at: string
+          user_id: string | null
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          observacoes?: string | null
+          updated_at?: string
+          user_id?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          observacoes?: string | null
+          updated_at?: string
+          user_id?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: []
+      }
       rateios: {
         Row: {
+          configuracao_id: string | null
           created_at: string
           id: string
           observacoes: string | null
@@ -296,6 +337,7 @@ export type Database = {
           vigencia_inicio: string
         }
         Insert: {
+          configuracao_id?: string | null
           created_at?: string
           id?: string
           observacoes?: string | null
@@ -307,6 +349,7 @@ export type Database = {
           vigencia_inicio: string
         }
         Update: {
+          configuracao_id?: string | null
           created_at?: string
           id?: string
           observacoes?: string | null
@@ -318,6 +361,13 @@ export type Database = {
           vigencia_inicio?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "rateios_configuracao_id_fkey"
+            columns: ["configuracao_id"]
+            isOneToOne: false
+            referencedRelation: "rateio_configuracoes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "rateios_unidade_id_fkey"
             columns: ["unidade_id"]
@@ -333,6 +383,7 @@ export type Database = {
           cidade: string | null
           classe: string | null
           created_at: string
+          distribuidora: string
           endereco: string | null
           geradora: boolean
           id: string
@@ -340,6 +391,7 @@ export type Database = {
           numero_uc: string
           observacoes: string | null
           percentual_rateio: number | null
+          situacao: string
           tipo_ligacao: string | null
           titular: string | null
           updated_at: string
@@ -350,6 +402,7 @@ export type Database = {
           cidade?: string | null
           classe?: string | null
           created_at?: string
+          distribuidora?: string
           endereco?: string | null
           geradora?: boolean
           id?: string
@@ -357,6 +410,7 @@ export type Database = {
           numero_uc: string
           observacoes?: string | null
           percentual_rateio?: number | null
+          situacao?: string
           tipo_ligacao?: string | null
           titular?: string | null
           updated_at?: string
@@ -367,6 +421,7 @@ export type Database = {
           cidade?: string | null
           classe?: string | null
           created_at?: string
+          distribuidora?: string
           endereco?: string | null
           geradora?: boolean
           id?: string
@@ -374,6 +429,7 @@ export type Database = {
           numero_uc?: string
           observacoes?: string | null
           percentual_rateio?: number | null
+          situacao?: string
           tipo_ligacao?: string | null
           titular?: string | null
           updated_at?: string
@@ -411,6 +467,7 @@ export type Database = {
           inversor: string | null
           nome: string
           potencia_kwp: number | null
+          potencia_modulo_w: number | null
           quantidade_modulos: number | null
           unidade_geradora_id: string | null
           updated_at: string
@@ -424,6 +481,7 @@ export type Database = {
           inversor?: string | null
           nome: string
           potencia_kwp?: number | null
+          potencia_modulo_w?: number | null
           quantidade_modulos?: number | null
           unidade_geradora_id?: string | null
           updated_at?: string
@@ -437,6 +495,7 @@ export type Database = {
           inversor?: string | null
           nome?: string
           potencia_kwp?: number | null
+          potencia_modulo_w?: number | null
           quantidade_modulos?: number | null
           unidade_geradora_id?: string | null
           updated_at?: string
@@ -457,6 +516,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      aplicar_rateio: {
+        Args: {
+          _observacoes?: string
+          _percentuais: Json
+          _vigencia_inicio: string
+        }
+        Returns: string
+      }
       can_write: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {

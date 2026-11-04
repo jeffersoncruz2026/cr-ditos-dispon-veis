@@ -43,6 +43,13 @@
       "when": 1793800000001,
       "tag": "0005_estrutura_base_solargest",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793800000002,
+      "tag": "0006_restaurar_modulo_unidades",
+      "breakpoints": true
     }
   ]
 }
