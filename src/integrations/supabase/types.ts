@@ -1,11 +1,17 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.18";
-  };
+    PostgrestVersion: "14.18"
+  }
   public: {
     Tables: {
       alertas: {
@@ -70,7 +76,7 @@ export type Database = {
           saldo_atual_kwh: number | null
           unidade_id: string
           updated_at: string
-          user_id: string | null
+          user_id: string
           validade: string | null
         }
         Insert: {
@@ -84,7 +90,7 @@ export type Database = {
           saldo_atual_kwh?: number | null
           unidade_id: string
           updated_at?: string
-          user_id?: string | null
+          user_id?: string
           validade?: string | null
         }
         Update: {
@@ -98,7 +104,7 @@ export type Database = {
           saldo_atual_kwh?: number | null
           unidade_id?: string
           updated_at?: string
-          user_id?: string | null
+          user_id?: string
           validade?: string | null
         }
         Relationships: [
@@ -158,7 +164,7 @@ export type Database = {
           uc_fatura: string | null
           unidade_id: string
           updated_at: string
-          user_id: string | null
+          user_id: string
           valor_bandeiras: number | null
           valor_energia: number | null
           valor_total: number | null
@@ -203,7 +209,7 @@ export type Database = {
           uc_fatura?: string | null
           unidade_id: string
           updated_at?: string
-          user_id?: string | null
+          user_id?: string
           valor_bandeiras?: number | null
           valor_energia?: number | null
           valor_total?: number | null
@@ -248,7 +254,7 @@ export type Database = {
           uc_fatura?: string | null
           unidade_id?: string
           updated_at?: string
-          user_id?: string | null
+          user_id?: string
           valor_bandeiras?: number | null
           valor_energia?: number | null
           valor_total?: number | null
@@ -296,6 +302,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      geracao_solar: {
+        Row: {
+          created_at: string
+          energia_injetada_kwh: number | null
+          geracao_kwh: number
+          id: string
+          mes_referencia: string
+          observacoes: string | null
+          updated_at: string
+          user_id: string
+          usina_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          energia_injetada_kwh?: number | null
+          geracao_kwh: number
+          id?: string
+          mes_referencia: string
+          observacoes?: string | null
+          updated_at?: string
+          user_id?: string
+          usina_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          energia_injetada_kwh?: number | null
+          geracao_kwh?: number
+          id?: string
+          mes_referencia?: string
+          observacoes?: string | null
+          updated_at?: string
+          user_id?: string
+          usina_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "geracao_solar_usina_id_fkey"
+            columns: ["usina_id"]
+            isOneToOne: false
+            referencedRelation: "usinas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       importacoes_faturas: {
         Row: {
@@ -372,50 +422,6 @@ export type Database = {
           },
         ]
       }
-      geracao_solar: {
-        Row: {
-          created_at: string
-          energia_injetada_kwh: number | null
-          geracao_kwh: number
-          id: string
-          mes_referencia: string
-          observacoes: string | null
-          updated_at: string
-          user_id: string
-          usina_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          energia_injetada_kwh?: number | null
-          geracao_kwh: number
-          id?: string
-          mes_referencia: string
-          observacoes?: string | null
-          updated_at?: string
-          user_id?: string
-          usina_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          energia_injetada_kwh?: number | null
-          geracao_kwh?: number
-          id?: string
-          mes_referencia?: string
-          observacoes?: string | null
-          updated_at?: string
-          user_id?: string
-          usina_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "geracao_solar_usina_id_fkey"
-            columns: ["usina_id"]
-            isOneToOne: false
-            referencedRelation: "usinas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       perfis: {
         Row: {
           created_at: string
@@ -437,114 +443,6 @@ export type Database = {
           id?: string
           nome?: string | null
           updated_at?: string
-        }
-        Relationships: []
-      }
-      rateios: {
-        Row: {
-          configuracao_id: string | null
-          created_at: string
-          id: string
-          observacoes: string | null
-          percentual: number
-          unidade_id: string
-          updated_at: string
-          user_id: string | null
-          vigencia_fim: string | null
-          vigencia_inicio: string
-        }
-        Insert: {
-          configuracao_id?: string | null
-          created_at?: string
-          id?: string
-          observacoes?: string | null
-          percentual: number
-          unidade_id: string
-          updated_at?: string
-          user_id?: string | null
-          vigencia_fim?: string | null
-          vigencia_inicio: string
-        }
-        Update: {
-          configuracao_id?: string | null
-          created_at?: string
-          id?: string
-          observacoes?: string | null
-          percentual?: number
-          unidade_id?: string
-          updated_at?: string
-          user_id?: string | null
-          vigencia_fim?: string | null
-          vigencia_inicio?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "rateios_configuracao_id_fkey"
-            columns: ["configuracao_id"]
-            isOneToOne: false
-            referencedRelation: "rateio_configuracoes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "rateios_unidade_id_fkey"
-            columns: ["unidade_id"]
-            isOneToOne: false
-            referencedRelation: "unidades_consumidoras"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      unidades_consumidoras: {
-        Row: {
-          cidade: string | null
-          classe: string | null
-          created_at: string
-          distribuidora: string
-          endereco: string | null
-          geradora: boolean
-          id: string
-          nome: string
-          numero_uc: string
-          observacoes: string | null
-          situacao: string
-          tipo_ligacao: string | null
-          titular: string | null
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          cidade?: string | null
-          classe?: string | null
-          created_at?: string
-          distribuidora?: string
-          endereco?: string | null
-          geradora?: boolean
-          id?: string
-          nome: string
-          numero_uc: string
-          observacoes?: string | null
-          situacao?: string
-          tipo_ligacao?: string | null
-          titular?: string | null
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          cidade?: string | null
-          classe?: string | null
-          created_at?: string
-          distribuidora?: string
-          endereco?: string | null
-          geradora?: boolean
-          id?: string
-          nome?: string
-          numero_uc?: string
-          observacoes?: string | null
-          situacao?: string
-          tipo_ligacao?: string | null
-          titular?: string | null
-          updated_at?: string
-          user_id?: string | null
         }
         Relationships: []
       }
@@ -575,6 +473,120 @@ export type Database = {
           user_id?: string | null
           vigencia_fim?: string | null
           vigencia_inicio?: string
+        }
+        Relationships: []
+      }
+      rateios: {
+        Row: {
+          configuracao_id: string | null
+          created_at: string
+          id: string
+          observacoes: string | null
+          percentual: number
+          unidade_id: string
+          updated_at: string
+          user_id: string
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        Insert: {
+          configuracao_id?: string | null
+          created_at?: string
+          id?: string
+          observacoes?: string | null
+          percentual: number
+          unidade_id: string
+          updated_at?: string
+          user_id?: string
+          vigencia_fim?: string | null
+          vigencia_inicio: string
+        }
+        Update: {
+          configuracao_id?: string | null
+          created_at?: string
+          id?: string
+          observacoes?: string | null
+          percentual?: number
+          unidade_id?: string
+          updated_at?: string
+          user_id?: string
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rateios_configuracao_id_fkey"
+            columns: ["configuracao_id"]
+            isOneToOne: false
+            referencedRelation: "rateio_configuracoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rateios_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "unidades_consumidoras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      unidades_consumidoras: {
+        Row: {
+          ativa: boolean
+          cidade: string | null
+          classe: string | null
+          created_at: string
+          distribuidora: string
+          endereco: string | null
+          geradora: boolean
+          id: string
+          nome: string
+          numero_uc: string
+          observacoes: string | null
+          percentual_rateio: number | null
+          situacao: string
+          tipo_ligacao: string | null
+          titular: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativa?: boolean
+          cidade?: string | null
+          classe?: string | null
+          created_at?: string
+          distribuidora?: string
+          endereco?: string | null
+          geradora?: boolean
+          id?: string
+          nome: string
+          numero_uc: string
+          observacoes?: string | null
+          percentual_rateio?: number | null
+          situacao?: string
+          tipo_ligacao?: string | null
+          titular?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          ativa?: boolean
+          cidade?: string | null
+          classe?: string | null
+          created_at?: string
+          distribuidora?: string
+          endereco?: string | null
+          geradora?: boolean
+          id?: string
+          nome?: string
+          numero_uc?: string
+          observacoes?: string | null
+          percentual_rateio?: number | null
+          situacao?: string
+          tipo_ligacao?: string | null
+          titular?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -612,7 +624,7 @@ export type Database = {
           quantidade_modulos: number | null
           unidade_geradora_id: string | null
           updated_at: string
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           ativa?: boolean
@@ -626,7 +638,7 @@ export type Database = {
           quantidade_modulos?: number | null
           unidade_geradora_id?: string | null
           updated_at?: string
-          user_id?: string | null
+          user_id?: string
         }
         Update: {
           ativa?: boolean
@@ -640,7 +652,7 @@ export type Database = {
           quantidade_modulos?: number | null
           unidade_geradora_id?: string | null
           updated_at?: string
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: [
           {
@@ -658,7 +670,11 @@ export type Database = {
     }
     Functions: {
       aplicar_rateio: {
-        Args: { _observacoes?: string; _percentuais: Json; _vigencia_inicio: string }
+        Args: {
+          _observacoes?: string
+          _percentuais: Json
+          _vigencia_inicio: string
+        }
         Returns: string
       }
       can_write: { Args: { _user_id: string }; Returns: boolean }
@@ -667,7 +683,10 @@ export type Database = {
         Returns: string
       }
       has_role: {
-        Args: { _role: Database["public"]["Enums"]["app_role"]; _user_id: string }
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
         Returns: boolean
       }
       is_authorized: { Args: { _user_id: string }; Returns: boolean }
@@ -681,116 +700,122 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">];
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
+    schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
+  schema: keyof DatabaseWithoutInternals
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R;
+      Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R;
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
       }
       ? R
       : never
-    : never;
+    : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
+    schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
+  schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I;
+      Insert: infer I
     }
     ? I
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I;
+        Insert: infer I
       }
       ? I
       : never
-    : never;
+    : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
+    schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
+  schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U;
+      Update: infer U
     }
     ? U
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U;
+        Update: infer U
       }
       ? U
       : never
-    : never;
+    : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends (DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
+    schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
+  schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never;
+    : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    keyof DefaultSchema["CompositeTypes"] | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
+    schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
+  schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never;
+    : never
 
 export const Constants = {
   public: {
@@ -798,4 +823,4 @@ export const Constants = {
       app_role: ["admin", "operador", "visualizador"],
     },
   },
-} as const;
+} as const

@@ -1,193 +1,194 @@
--- SolarGest — Módulo de Unidades Consumidoras.
--- Requer 0001_controle_acesso_estrutura e 0002_admin_principal aplicadas.
---
---   * Situação e distribuidora da unidade (substitui o antigo booleano "ativa").
---   * Percentual de rateio com histórico e vigência: rateio_configuracoes agrupa
---     os percentuais de todas as unidades em uma mesma data de vigência. O antigo
---     campo fixo unidades_consumidoras.percentual_rateio é removido.
---   * Função aplicar_rateio(): valida e grava uma nova configuração de forma atômica;
---     unidades "aguardando inclusão" que recebem percentual passam a "ativa".
---   * Créditos vinculados à fatura de origem (saldo nunca é cadastrado manualmente).
---   * Cadastro inicial das quatro unidades, da usina e do rateio inicial.
-
--- ---------------------------------------------------------------------------
--- Unidades consumidoras
--- ---------------------------------------------------------------------------
-ALTER TABLE public.unidades_consumidoras
-  ADD COLUMN distribuidora text NOT NULL DEFAULT 'Equatorial Goiás',
-  ADD COLUMN situacao text NOT NULL DEFAULT 'ativa'
-    CHECK (situacao IN ('ativa', 'aguardando_rateio', 'inativa'));
-
-UPDATE public.unidades_consumidoras SET situacao = 'inativa' WHERE ativa = false;
-
-ALTER TABLE public.unidades_consumidoras
-  DROP COLUMN ativa,
-  DROP COLUMN percentual_rateio;
-
--- created_by: permite cadastros feitos por migração (sem usuário logado).
-ALTER TABLE public.unidades_consumidoras ALTER COLUMN user_id DROP NOT NULL;
-ALTER TABLE public.usinas ALTER COLUMN user_id DROP NOT NULL;
-ALTER TABLE public.rateios ALTER COLUMN user_id DROP NOT NULL;
-
--- ---------------------------------------------------------------------------
--- Usinas: potência individual do módulo e uma usina por unidade geradora
--- ---------------------------------------------------------------------------
-ALTER TABLE public.usinas ADD COLUMN potencia_modulo_w integer;
-CREATE UNIQUE INDEX usinas_unidade_geradora_key ON public.usinas (unidade_geradora_id);
-
--- ---------------------------------------------------------------------------
--- Rateio com histórico de vigência
--- ---------------------------------------------------------------------------
-CREATE TABLE public.rateio_configuracoes (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid DEFAULT auth.uid(),
-  vigencia_inicio date NOT NULL UNIQUE,
-  vigencia_fim date,
-  observacoes text,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  CHECK (vigencia_fim IS NULL OR vigencia_fim >= vigencia_inicio)
-);
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.rateio_configuracoes TO authenticated;
-GRANT ALL ON public.rateio_configuracoes TO service_role;
-ALTER TABLE public.rateio_configuracoes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "autorizados_leem" ON public.rateio_configuracoes FOR SELECT TO authenticated
-  USING (public.is_authorized(auth.uid()));
-CREATE POLICY "editores_inserem" ON public.rateio_configuracoes FOR INSERT TO authenticated
-  WITH CHECK (public.can_write(auth.uid()));
-CREATE POLICY "editores_atualizam" ON public.rateio_configuracoes FOR UPDATE TO authenticated
-  USING (public.can_write(auth.uid())) WITH CHECK (public.can_write(auth.uid()));
-CREATE POLICY "editores_excluem" ON public.rateio_configuracoes FOR DELETE TO authenticated
-  USING (public.can_write(auth.uid()));
-CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.rateio_configuracoes
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-ALTER TABLE public.rateios
-  ADD COLUMN configuracao_id uuid REFERENCES public.rateio_configuracoes(id) ON DELETE CASCADE,
-  ADD CONSTRAINT rateios_configuracao_unidade_key UNIQUE (configuracao_id, unidade_id);
-
--- Grava uma nova configuração de rateio, validando a distribuição:
---   * percentuais entre 0 e 100, sem unidades repetidas;
---   * todas as unidades não inativas presentes; unidades inativas com 0%;
---   * soma exatamente igual a 100%;
---   * vigência (mês) igual ou posterior à configuração vigente. Se for o mesmo
---     mês, a configuração vigente é substituída (correção).
-CREATE OR REPLACE FUNCTION public.aplicar_rateio(
-  _vigencia_inicio date,
-  _percentuais jsonb,
-  _observacoes text DEFAULT NULL
-) RETURNS uuid
-LANGUAGE plpgsql SECURITY INVOKER SET search_path = public AS $$
-DECLARE
-  _cfg uuid;
-  _soma numeric;
-  _ultima date;
-  _vig date := date_trunc('month', _vigencia_inicio)::date;
-BEGIN
-  IF NOT public.can_write(auth.uid()) THEN
-    RAISE EXCEPTION 'Você não tem permissão para alterar o rateio.' USING ERRCODE = '42501';
-  END IF;
-
-  CREATE TEMP TABLE _itens ON COMMIT DROP AS
-    SELECT x.unidade_id, round(x.percentual, 2) AS percentual
-    FROM jsonb_to_recordset(_percentuais) AS x(unidade_id uuid, percentual numeric);
-
-  IF EXISTS (SELECT 1 FROM _itens WHERE unidade_id IS NULL OR percentual IS NULL OR percentual < 0 OR percentual > 100) THEN
-    RAISE EXCEPTION 'Cada percentual deve estar entre 0%% e 100%%.' USING ERRCODE = '22023';
-  END IF;
-  IF (SELECT count(*) <> count(DISTINCT unidade_id) FROM _itens) THEN
-    RAISE EXCEPTION 'Uma unidade foi informada mais de uma vez.' USING ERRCODE = '22023';
-  END IF;
-  IF EXISTS (SELECT 1 FROM _itens i LEFT JOIN unidades_consumidoras u ON u.id = i.unidade_id WHERE u.id IS NULL) THEN
-    RAISE EXCEPTION 'Unidade consumidora inexistente no rateio.' USING ERRCODE = '22023';
-  END IF;
-  IF EXISTS (
-    SELECT 1 FROM unidades_consumidoras u
-    WHERE u.situacao <> 'inativa' AND NOT EXISTS (SELECT 1 FROM _itens i WHERE i.unidade_id = u.id)
-  ) THEN
-    RAISE EXCEPTION 'Todas as unidades não inativas devem constar no rateio.' USING ERRCODE = '22023';
-  END IF;
-  IF EXISTS (
-    SELECT 1 FROM _itens i JOIN unidades_consumidoras u ON u.id = i.unidade_id
-    WHERE u.situacao = 'inativa' AND i.percentual > 0
-  ) THEN
-    RAISE EXCEPTION 'Unidades inativas não podem receber percentual de rateio.' USING ERRCODE = '22023';
-  END IF;
-
-  SELECT coalesce(sum(percentual), 0) INTO _soma FROM _itens;
-  IF _soma <> 100 THEN
-    RAISE EXCEPTION '%', format('A soma dos percentuais deve ser 100%% (atual: %s%%).', _soma) USING ERRCODE = '22023';
-  END IF;
-
-  SELECT max(vigencia_inicio) INTO _ultima FROM rateio_configuracoes;
-  IF _ultima IS NOT NULL AND _vig < _ultima THEN
-    RAISE EXCEPTION 'A vigência deve ser igual ou posterior a %.', to_char(_ultima, 'MM/YYYY') USING ERRCODE = '22023';
-  END IF;
-
-  IF _ultima = _vig THEN
-    DELETE FROM rateio_configuracoes WHERE vigencia_inicio = _vig;  -- correção da vigente
-  ELSE
-    UPDATE rateio_configuracoes SET vigencia_fim = _vig - 1 WHERE vigencia_fim IS NULL;
-    UPDATE rateios SET vigencia_fim = _vig - 1 WHERE vigencia_fim IS NULL;
-  END IF;
-
-  INSERT INTO rateio_configuracoes (vigencia_inicio, observacoes)
-  VALUES (_vig, nullif(trim(_observacoes), ''))
-  RETURNING id INTO _cfg;
-
-  INSERT INTO rateios (configuracao_id, unidade_id, percentual, vigencia_inicio, observacoes)
-  SELECT _cfg, unidade_id, percentual, _vig, nullif(trim(_observacoes), '') FROM _itens;
-
-  -- Unidades aguardando inclusão passam a ativas ao receberem percentual.
-  UPDATE unidades_consumidoras u SET situacao = 'ativa'
-  FROM _itens i
-  WHERE i.unidade_id = u.id AND i.percentual > 0 AND u.situacao = 'aguardando_rateio';
-
-  RETURN _cfg;
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.aplicar_rateio(date, jsonb, text) TO authenticated;
-
--- ---------------------------------------------------------------------------
--- Créditos: sempre derivados de uma fatura
--- ---------------------------------------------------------------------------
-ALTER TABLE public.creditos
-  ADD COLUMN fatura_id uuid REFERENCES public.faturas(id) ON DELETE CASCADE;
-
--- ---------------------------------------------------------------------------
--- Cadastro inicial
--- ---------------------------------------------------------------------------
--- created_at escalonado preserva a ordem de cadastro (Unidade 1 → 4) na listagem.
-INSERT INTO public.unidades_consumidoras (nome, numero_uc, geradora, distribuidora, situacao, created_at) VALUES
-  ('Casa Jefferson', '321778201228', true,  'Equatorial Goiás', 'ativa',             now()),
-  ('Casa Donizete',  '309275601274', false, 'Equatorial Goiás', 'ativa',             now() + interval '1 second'),
-  ('Casa Ilza',      '127986101224', false, 'Equatorial Goiás', 'ativa',             now() + interval '2 seconds'),
-  ('Casa Mirian',    '128293601213', false, 'Equatorial Goiás', 'aguardando_rateio', now() + interval '3 seconds')
-ON CONFLICT (numero_uc) DO NOTHING;
-
-INSERT INTO public.usinas
-  (nome, unidade_geradora_id, potencia_kwp, quantidade_modulos, potencia_modulo_w, inversor, data_instalacao)
-SELECT 'Usina Casa Jefferson', u.id, 5.44, 8, 680, 'Sungrow SG5K-RS-L', DATE '2025-11-01'
-FROM public.unidades_consumidoras u
-WHERE u.numero_uc = '321778201228'
-ON CONFLICT (unidade_geradora_id) DO NOTHING;
-
--- Rateio inicial (vigência: mês de instalação da usina), somente se ainda não houver rateio.
-WITH cfg AS (
-  INSERT INTO public.rateio_configuracoes (vigencia_inicio, observacoes)
-  SELECT DATE '2025-11-01', 'Rateio inicial'
-  WHERE NOT EXISTS (SELECT 1 FROM public.rateio_configuracoes)
-  RETURNING id, vigencia_inicio
-)
-INSERT INTO public.rateios (configuracao_id, unidade_id, percentual, vigencia_inicio, observacoes)
-SELECT cfg.id, u.id, p.percentual, cfg.vigencia_inicio, 'Rateio inicial'
-FROM cfg
-CROSS JOIN (VALUES
-  ('321778201228', 50.00),
-  ('309275601274', 25.00),
-  ('127986101224', 25.00),
-  ('128293601213', 0.00)
-) AS p(numero_uc, percentual)
-JOIN public.unidades_consumidoras u ON u.numero_uc = p.numero_uc;
+-- The content of this migration cannot be applied: required base schema is missing; replaced in dependency order without dropping legacy columns.
+-- -- SolarGest — Módulo de Unidades Consumidoras.
+-- -- Requer 0001_controle_acesso_estrutura e 0002_admin_principal aplicadas.
+-- --
+-- --   * Situação e distribuidora da unidade (substitui o antigo booleano "ativa").
+-- --   * Percentual de rateio com histórico e vigência: rateio_configuracoes agrupa
+-- --     os percentuais de todas as unidades em uma mesma data de vigência. O antigo
+-- --     campo fixo unidades_consumidoras.percentual_rateio é removido.
+-- --   * Função aplicar_rateio(): valida e grava uma nova configuração de forma atômica;
+-- --     unidades "aguardando inclusão" que recebem percentual passam a "ativa".
+-- --   * Créditos vinculados à fatura de origem (saldo nunca é cadastrado manualmente).
+-- --   * Cadastro inicial das quatro unidades, da usina e do rateio inicial.
+-- 
+-- -- ---------------------------------------------------------------------------
+-- -- Unidades consumidoras
+-- -- ---------------------------------------------------------------------------
+-- ALTER TABLE public.unidades_consumidoras
+--   ADD COLUMN distribuidora text NOT NULL DEFAULT 'Equatorial Goiás',
+--   ADD COLUMN situacao text NOT NULL DEFAULT 'ativa'
+--     CHECK (situacao IN ('ativa', 'aguardando_rateio', 'inativa'));
+-- 
+-- UPDATE public.unidades_consumidoras SET situacao = 'inativa' WHERE ativa = false;
+-- 
+-- ALTER TABLE public.unidades_consumidoras
+--   DROP COLUMN ativa,
+--   DROP COLUMN percentual_rateio;
+-- 
+-- -- created_by: permite cadastros feitos por migração (sem usuário logado).
+-- ALTER TABLE public.unidades_consumidoras ALTER COLUMN user_id DROP NOT NULL;
+-- ALTER TABLE public.usinas ALTER COLUMN user_id DROP NOT NULL;
+-- ALTER TABLE public.rateios ALTER COLUMN user_id DROP NOT NULL;
+-- 
+-- -- ---------------------------------------------------------------------------
+-- -- Usinas: potência individual do módulo e uma usina por unidade geradora
+-- -- ---------------------------------------------------------------------------
+-- ALTER TABLE public.usinas ADD COLUMN potencia_modulo_w integer;
+-- CREATE UNIQUE INDEX usinas_unidade_geradora_key ON public.usinas (unidade_geradora_id);
+-- 
+-- -- ---------------------------------------------------------------------------
+-- -- Rateio com histórico de vigência
+-- -- ---------------------------------------------------------------------------
+-- CREATE TABLE public.rateio_configuracoes (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   user_id uuid DEFAULT auth.uid(),
+--   vigencia_inicio date NOT NULL UNIQUE,
+--   vigencia_fim date,
+--   observacoes text,
+--   created_at timestamptz NOT NULL DEFAULT now(),
+--   updated_at timestamptz NOT NULL DEFAULT now(),
+--   CHECK (vigencia_fim IS NULL OR vigencia_fim >= vigencia_inicio)
+-- );
+-- 
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON public.rateio_configuracoes TO authenticated;
+-- GRANT ALL ON public.rateio_configuracoes TO service_role;
+-- ALTER TABLE public.rateio_configuracoes ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY "autorizados_leem" ON public.rateio_configuracoes FOR SELECT TO authenticated
+--   USING (public.is_authorized(auth.uid()));
+-- CREATE POLICY "editores_inserem" ON public.rateio_configuracoes FOR INSERT TO authenticated
+--   WITH CHECK (public.can_write(auth.uid()));
+-- CREATE POLICY "editores_atualizam" ON public.rateio_configuracoes FOR UPDATE TO authenticated
+--   USING (public.can_write(auth.uid())) WITH CHECK (public.can_write(auth.uid()));
+-- CREATE POLICY "editores_excluem" ON public.rateio_configuracoes FOR DELETE TO authenticated
+--   USING (public.can_write(auth.uid()));
+-- CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.rateio_configuracoes
+--   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+-- 
+-- ALTER TABLE public.rateios
+--   ADD COLUMN configuracao_id uuid REFERENCES public.rateio_configuracoes(id) ON DELETE CASCADE,
+--   ADD CONSTRAINT rateios_configuracao_unidade_key UNIQUE (configuracao_id, unidade_id);
+-- 
+-- -- Grava uma nova configuração de rateio, validando a distribuição:
+-- --   * percentuais entre 0 e 100, sem unidades repetidas;
+-- --   * todas as unidades não inativas presentes; unidades inativas com 0%;
+-- --   * soma exatamente igual a 100%;
+-- --   * vigência (mês) igual ou posterior à configuração vigente. Se for o mesmo
+-- --     mês, a configuração vigente é substituída (correção).
+-- CREATE OR REPLACE FUNCTION public.aplicar_rateio(
+--   _vigencia_inicio date,
+--   _percentuais jsonb,
+--   _observacoes text DEFAULT NULL
+-- ) RETURNS uuid
+-- LANGUAGE plpgsql SECURITY INVOKER SET search_path = public AS $$
+-- DECLARE
+--   _cfg uuid;
+--   _soma numeric;
+--   _ultima date;
+--   _vig date := date_trunc('month', _vigencia_inicio)::date;
+-- BEGIN
+--   IF NOT public.can_write(auth.uid()) THEN
+--     RAISE EXCEPTION 'Você não tem permissão para alterar o rateio.' USING ERRCODE = '42501';
+--   END IF;
+-- 
+--   CREATE TEMP TABLE _itens ON COMMIT DROP AS
+--     SELECT x.unidade_id, round(x.percentual, 2) AS percentual
+--     FROM jsonb_to_recordset(_percentuais) AS x(unidade_id uuid, percentual numeric);
+-- 
+--   IF EXISTS (SELECT 1 FROM _itens WHERE unidade_id IS NULL OR percentual IS NULL OR percentual < 0 OR percentual > 100) THEN
+--     RAISE EXCEPTION 'Cada percentual deve estar entre 0%% e 100%%.' USING ERRCODE = '22023';
+--   END IF;
+--   IF (SELECT count(*) <> count(DISTINCT unidade_id) FROM _itens) THEN
+--     RAISE EXCEPTION 'Uma unidade foi informada mais de uma vez.' USING ERRCODE = '22023';
+--   END IF;
+--   IF EXISTS (SELECT 1 FROM _itens i LEFT JOIN unidades_consumidoras u ON u.id = i.unidade_id WHERE u.id IS NULL) THEN
+--     RAISE EXCEPTION 'Unidade consumidora inexistente no rateio.' USING ERRCODE = '22023';
+--   END IF;
+--   IF EXISTS (
+--     SELECT 1 FROM unidades_consumidoras u
+--     WHERE u.situacao <> 'inativa' AND NOT EXISTS (SELECT 1 FROM _itens i WHERE i.unidade_id = u.id)
+--   ) THEN
+--     RAISE EXCEPTION 'Todas as unidades não inativas devem constar no rateio.' USING ERRCODE = '22023';
+--   END IF;
+--   IF EXISTS (
+--     SELECT 1 FROM _itens i JOIN unidades_consumidoras u ON u.id = i.unidade_id
+--     WHERE u.situacao = 'inativa' AND i.percentual > 0
+--   ) THEN
+--     RAISE EXCEPTION 'Unidades inativas não podem receber percentual de rateio.' USING ERRCODE = '22023';
+--   END IF;
+-- 
+--   SELECT coalesce(sum(percentual), 0) INTO _soma FROM _itens;
+--   IF _soma <> 100 THEN
+--     RAISE EXCEPTION '%', format('A soma dos percentuais deve ser 100%% (atual: %s%%).', _soma) USING ERRCODE = '22023';
+--   END IF;
+-- 
+--   SELECT max(vigencia_inicio) INTO _ultima FROM rateio_configuracoes;
+--   IF _ultima IS NOT NULL AND _vig < _ultima THEN
+--     RAISE EXCEPTION 'A vigência deve ser igual ou posterior a %.', to_char(_ultima, 'MM/YYYY') USING ERRCODE = '22023';
+--   END IF;
+-- 
+--   IF _ultima = _vig THEN
+--     DELETE FROM rateio_configuracoes WHERE vigencia_inicio = _vig;  -- correção da vigente
+--   ELSE
+--     UPDATE rateio_configuracoes SET vigencia_fim = _vig - 1 WHERE vigencia_fim IS NULL;
+--     UPDATE rateios SET vigencia_fim = _vig - 1 WHERE vigencia_fim IS NULL;
+--   END IF;
+-- 
+--   INSERT INTO rateio_configuracoes (vigencia_inicio, observacoes)
+--   VALUES (_vig, nullif(trim(_observacoes), ''))
+--   RETURNING id INTO _cfg;
+-- 
+--   INSERT INTO rateios (configuracao_id, unidade_id, percentual, vigencia_inicio, observacoes)
+--   SELECT _cfg, unidade_id, percentual, _vig, nullif(trim(_observacoes), '') FROM _itens;
+-- 
+--   -- Unidades aguardando inclusão passam a ativas ao receberem percentual.
+--   UPDATE unidades_consumidoras u SET situacao = 'ativa'
+--   FROM _itens i
+--   WHERE i.unidade_id = u.id AND i.percentual > 0 AND u.situacao = 'aguardando_rateio';
+-- 
+--   RETURN _cfg;
+-- END;
+-- $$;
+-- 
+-- GRANT EXECUTE ON FUNCTION public.aplicar_rateio(date, jsonb, text) TO authenticated;
+-- 
+-- -- ---------------------------------------------------------------------------
+-- -- Créditos: sempre derivados de uma fatura
+-- -- ---------------------------------------------------------------------------
+-- ALTER TABLE public.creditos
+--   ADD COLUMN fatura_id uuid REFERENCES public.faturas(id) ON DELETE CASCADE;
+-- 
+-- -- ---------------------------------------------------------------------------
+-- -- Cadastro inicial
+-- -- ---------------------------------------------------------------------------
+-- -- created_at escalonado preserva a ordem de cadastro (Unidade 1 → 4) na listagem.
+-- INSERT INTO public.unidades_consumidoras (nome, numero_uc, geradora, distribuidora, situacao, created_at) VALUES
+--   ('Casa Jefferson', '321778201228', true,  'Equatorial Goiás', 'ativa',             now()),
+--   ('Casa Donizete',  '309275601274', false, 'Equatorial Goiás', 'ativa',             now() + interval '1 second'),
+--   ('Casa Ilza',      '127986101224', false, 'Equatorial Goiás', 'ativa',             now() + interval '2 seconds'),
+--   ('Casa Mirian',    '128293601213', false, 'Equatorial Goiás', 'aguardando_rateio', now() + interval '3 seconds')
+-- ON CONFLICT (numero_uc) DO NOTHING;
+-- 
+-- INSERT INTO public.usinas
+--   (nome, unidade_geradora_id, potencia_kwp, quantidade_modulos, potencia_modulo_w, inversor, data_instalacao)
+-- SELECT 'Usina Casa Jefferson', u.id, 5.44, 8, 680, 'Sungrow SG5K-RS-L', DATE '2025-11-01'
+-- FROM public.unidades_consumidoras u
+-- WHERE u.numero_uc = '321778201228'
+-- ON CONFLICT (unidade_geradora_id) DO NOTHING;
+-- 
+-- -- Rateio inicial (vigência: mês de instalação da usina), somente se ainda não houver rateio.
+-- WITH cfg AS (
+--   INSERT INTO public.rateio_configuracoes (vigencia_inicio, observacoes)
+--   SELECT DATE '2025-11-01', 'Rateio inicial'
+--   WHERE NOT EXISTS (SELECT 1 FROM public.rateio_configuracoes)
+--   RETURNING id, vigencia_inicio
+-- )
+-- INSERT INTO public.rateios (configuracao_id, unidade_id, percentual, vigencia_inicio, observacoes)
+-- SELECT cfg.id, u.id, p.percentual, cfg.vigencia_inicio, 'Rateio inicial'
+-- FROM cfg
+-- CROSS JOIN (VALUES
+--   ('321778201228', 50.00),
+--   ('309275601274', 25.00),
+--   ('127986101224', 25.00),
+--   ('128293601213', 0.00)
+-- ) AS p(numero_uc, percentual)
+-- JOIN public.unidades_consumidoras u ON u.numero_uc = p.numero_uc;
