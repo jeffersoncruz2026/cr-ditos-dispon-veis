@@ -66,6 +66,8 @@ import { numeroBR, verificarDados, type Verificacao } from "@/features/faturas/a
 import { mensagemErro } from "@/features/unidades/api";
 import { AvisoLinha, listaAvisos, MetodoBadge, StatusImportacao } from "@/features/faturas/shared";
 import { VisualizadorPdf } from "@/features/faturas/pdf-viewer";
+import { VisualizadorXml } from "@/features/faturas/xml-viewer";
+import { ehXml, lerXmlNf3e } from "@/features/faturas/xml-nf3e";
 
 export const Route = createFileRoute("/_authenticated/importar-faturas/$importacaoId")({
   head: () => ({ meta: [{ title: "Conferência de fatura — SolarGest" }] }),
@@ -150,7 +152,7 @@ function Editor({ imp, unidades }: { imp: Importacao; unidades: UnidadeRef[] }) 
   const [unidadeId, setUnidadeId] = useState<string | null>(imp.unidade_id);
   const [descartando, setDescartando] = useState(false);
   const [reprocessando, setReprocessando] = useState(false);
-  const [aba, setAba] = useState<"pdf" | "dados">("dados");
+  const [aba, setAba] = useState<"original" | "dados">("dados");
 
   const confirmar = useConfirmarImportacao();
   const salvar = useSalvarRascunho();
@@ -159,7 +161,19 @@ function Editor({ imp, unidades }: { imp: Importacao; unidades: UnidadeRef[] }) 
 
   const editavel = canWrite && (imp.status === "aguardando_conferencia" || imp.status === "erro");
   const dados = useMemo(() => deForm(form), [form]);
-  const texto = imp.texto_extraido ?? "";
+  const bruto = imp.texto_extraido ?? "";
+  const porXml = ehXml(bruto);
+  const leituraXml = useMemo(() => {
+    if (!porXml) return null;
+    try {
+      return lerXmlNf3e(bruto);
+    } catch {
+      return null;
+    }
+  }, [bruto, porXml]);
+  // No XML, a conferência compara os campos com os valores da nota em formato legível.
+  const texto = leituraXml?.texto ?? bruto;
+  const fonte = porXml ? "XML" : "PDF";
   const verificacao = useMemo(() => verificarDados(texto, dados), [texto, dados]);
   const unidade = unidades.find((u) => u.id === unidadeId) ?? null;
   const ucDivergente =
@@ -181,6 +195,7 @@ function Editor({ imp, unidades }: { imp: Importacao; unidades: UnidadeRef[] }) 
   const pdf = useQuery({
     queryKey: ["pdf-url", imp.arquivo_path],
     queryFn: () => urlAssinadaPdf(imp.arquivo_path),
+    enabled: !porXml,
     staleTime: 20 * 60_000,
   });
 
@@ -230,7 +245,7 @@ function Editor({ imp, unidades }: { imp: Importacao; unidades: UnidadeRef[] }) 
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="truncate text-lg font-extrabold tracking-tight">{imp.arquivo_nome}</h1>
               <StatusImportacao status={imp.status} />
-              <MetodoBadge metodo={imp.metodo_extracao} />
+              <MetodoBadge metodo={imp.metodo_extracao} arquivo={imp.arquivo_nome} />
             </div>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {preenchidos} de {CAMPOS.length} campos identificados
@@ -266,7 +281,11 @@ function Editor({ imp, unidades }: { imp: Importacao; unidades: UnidadeRef[] }) 
                     importacaoId: imp.id,
                     unidadeId,
                     dados,
-                    extras: { _modelo: extraido["_modelo"] ?? null },
+                    extras: {
+                      _modelo: extraido["_modelo"] ?? null,
+                      ...(extraido["_origem"] ? { _origem: extraido["_origem"] } : {}),
+                      ...(extraido["_chave_nf3e"] ? { _chave_nf3e: extraido["_chave_nf3e"] } : {}),
+                    },
                   },
                   {
                     onSuccess: () => toast.success("Rascunho salvo."),
@@ -296,11 +315,11 @@ function Editor({ imp, unidades }: { imp: Importacao; unidades: UnidadeRef[] }) 
         )}
       </section>
 
-      {/* Celular/tablet: alterna entre PDF e dados. Desktop: lado a lado. Renderizado uma única vez. */}
+      {/* Celular/tablet: alterna entre o documento original e os dados. Desktop: lado a lado. Renderizado uma única vez. */}
       <div className="mb-4 grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 xl:hidden" role="tablist">
         {(
           [
-            ["pdf", "PDF original"],
+            ["original", porXml ? "XML da nota" : "PDF original"],
             ["dados", "Dados extraídos"],
           ] as const
         ).map(([v, l]) => (
@@ -324,10 +343,14 @@ function Editor({ imp, unidades }: { imp: Importacao; unidades: UnidadeRef[] }) 
         <div
           className={cn(
             "xl:sticky xl:top-20 xl:block xl:self-start",
-            aba === "pdf" ? "block" : "hidden",
+            aba === "original" ? "block" : "hidden",
           )}
         >
-          <VisualizadorPdf url={pdf.data} loading={pdf.isLoading} />
+          {porXml ? (
+            <VisualizadorXml leitura={leituraXml} xml={bruto} nomeArquivo={imp.arquivo_nome} />
+          ) : (
+            <VisualizadorPdf url={pdf.data} loading={pdf.isLoading} />
+          )}
         </div>
         <div className={cn("xl:block", aba === "dados" ? "block" : "hidden")}>{PainelDados()}</div>
       </div>
@@ -337,7 +360,7 @@ function Editor({ imp, unidades }: { imp: Importacao; unidades: UnidadeRef[] }) 
           <AlertDialogHeader>
             <AlertDialogTitle>Descartar esta importação?</AlertDialogTitle>
             <AlertDialogDescription>
-              Os dados extraídos não serão gravados. O PDF poderá ser enviado novamente depois.
+              Os dados extraídos não serão gravados. O arquivo poderá ser enviado novamente depois.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -377,9 +400,11 @@ function Editor({ imp, unidades }: { imp: Importacao; unidades: UnidadeRef[] }) 
                   {
                     onSuccess: (r) =>
                       toast.success(
-                        r.metodo === "ia"
-                          ? "Extração por IA concluída."
-                          : "Extração básica concluída.",
+                        r.metodo === "xml"
+                          ? "XML lido novamente."
+                          : r.metodo === "ia"
+                            ? "Extração por IA concluída."
+                            : "Extração básica concluída.",
                       ),
                     onError: () => toast.error("Falha ao reprocessar."),
                   },
@@ -416,7 +441,7 @@ function Editor({ imp, unidades }: { imp: Importacao; unidades: UnidadeRef[] }) 
                   <AvisoLinha
                     aviso={{
                       nivel: "atencao",
-                      mensagem: `${conferir.length} valor(es) não localizado(s) literalmente no texto do PDF: ${conferir
+                      mensagem: `${conferir.length} valor(es) não localizado(s) literalmente no ${porXml ? "XML" : "texto do PDF"}: ${conferir
                         .map((c) => c.rotulo)
                         .join(", ")}. Confira com o documento.`,
                     }}
@@ -475,6 +500,7 @@ function Editor({ imp, unidades }: { imp: Importacao; unidades: UnidadeRef[] }) 
                   campo={c}
                   valor={form[c.chave]}
                   verificacao={verificacao[c.chave]}
+                  fonte={fonte}
                   disabled={!editavel}
                   onChange={(v) => set(c.chave, v)}
                 />
@@ -493,12 +519,14 @@ function CampoInput({
   campo,
   valor,
   verificacao,
+  fonte,
   disabled,
   onChange,
 }: {
   campo: Campo;
   valor: string;
   verificacao: Verificacao;
+  fonte: "XML" | "PDF";
   disabled: boolean;
   onChange: (v: string) => void;
 }) {
@@ -510,7 +538,7 @@ function CampoInput({
         <Label htmlFor={campo.chave} title={campo.ajuda} className="leading-tight">
           {campo.rotulo}
         </Label>
-        <Indicador v={verificacao} />
+        <Indicador v={verificacao} fonte={fonte} />
       </div>
       <div className="relative">
         {sufixo === "R$" && (
@@ -544,14 +572,14 @@ function CampoInput({
   );
 }
 
-function Indicador({ v }: { v: Verificacao }) {
+function Indicador({ v, fonte }: { v: Verificacao; fonte: "XML" | "PDF" }) {
   if (v === "encontrado")
     return (
       <span
         className="inline-flex items-center gap-1 text-[11px] font-medium text-accent-foreground"
-        title="Valor localizado no texto do PDF"
+        title={`Valor localizado no ${fonte === "XML" ? "XML" : "texto do PDF"}`}
       >
-        <CheckCircle2 className="h-3 w-3" /> No PDF
+        <CheckCircle2 className="h-3 w-3" /> No {fonte}
       </span>
     );
   if (v === "nao_localizado")

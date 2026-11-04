@@ -195,7 +195,7 @@ export function gerarAvisos(args: {
   ucAmbigua: boolean;
   faturaExistente: boolean;
   semTexto: boolean;
-  metodo: "ia" | "basica";
+  metodo: "ia" | "basica" | "xml";
   erroIA?: string | null;
 }): Aviso[] {
   const a: Aviso[] = [];
@@ -232,11 +232,13 @@ export function gerarAvisos(args: {
       a.push({
         nivel: "atencao",
         campo: c.chave,
-        mensagem: `${c.rotulo}: valor não localizado literalmente no texto do PDF — confira.`,
+        mensagem: `${c.rotulo}: valor não localizado literalmente no ${args.metodo === "xml" ? "XML" : "texto do PDF"} — confira.`,
       });
   }
   const d = args.dados;
+  // No XML ambos os valores vêm de campos próprios da nota, então a igualdade é informação da distribuidora.
   if (
+    args.metodo !== "xml" &&
     typeof d.geracao_ciclo_kwh === "number" &&
     typeof d.energia_injetada_kwh === "number" &&
     d.geracao_ciclo_kwh === d.energia_injetada_kwh
