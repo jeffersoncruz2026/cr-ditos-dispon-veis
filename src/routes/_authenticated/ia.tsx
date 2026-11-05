@@ -11,7 +11,7 @@ function Page() {
   return (
     <ModulePage
       icon={Sparkles}
-      eyebrow="Análise"
+      eyebrow="Inteligência"
       title="Inteligência Artificial"
       description="Assistente inteligente para análise de consumo e recomendações de rateio."
       emptyTitle="Assistente ainda não disponível"

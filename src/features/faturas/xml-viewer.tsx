@@ -25,7 +25,7 @@ export function VisualizadorXml({
   );
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-card">
+    <div className="overflow-hidden rounded-xl border bg-card shadow-card">
       <div className="flex items-center justify-between gap-2 border-b px-4 py-2">
         <p className="text-sm font-semibold">
           XML da nota fiscal

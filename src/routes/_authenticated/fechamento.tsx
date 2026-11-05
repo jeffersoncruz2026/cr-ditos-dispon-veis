@@ -11,7 +11,7 @@ function Page() {
   return (
     <ModulePage
       icon={CalendarCheck}
-      eyebrow="Operação"
+      eyebrow="Gestão energética"
       title="Fechamento Mensal"
       description="Consolide geração, consumo e créditos de cada competência."
       emptyTitle="Nenhum fechamento realizado"

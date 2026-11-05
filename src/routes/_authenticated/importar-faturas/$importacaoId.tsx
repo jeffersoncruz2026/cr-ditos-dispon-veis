@@ -236,14 +236,14 @@ function Editor({ imp, unidades }: { imp: Importacao; unidades: UnidadeRef[] }) 
         <ArrowLeft className="h-4 w-4" /> Importar faturas
       </Link>
 
-      <section className="mb-5 flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-5 shadow-card lg:flex-row lg:items-center lg:justify-between">
+      <section className="mb-5 flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-card lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-center gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-destructive/[0.07] text-destructive">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-info-soft text-info">
             <FileText className="h-6 w-6" />
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-lg font-extrabold tracking-tight">{imp.arquivo_nome}</h1>
+              <h1 className="truncate text-lg font-bold tracking-tight">{imp.arquivo_nome}</h1>
               <StatusImportacao status={imp.status} />
               <MetodoBadge metodo={imp.metodo_extracao} arquivo={imp.arquivo_nome} />
             </div>
@@ -256,7 +256,7 @@ function Editor({ imp, unidades }: { imp: Importacao; unidades: UnidadeRef[] }) 
           </div>
         </div>
         {editavel && (
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap [&>button:last-child]:col-span-2">
             <Button variant="ghost" onClick={() => setDescartando(true)}>
               <Trash2 className="h-4 w-4" /> Descartar
             </Button>

@@ -35,7 +35,7 @@ function Configuracoes() {
   return (
     <>
       <PageHeader
-        eyebrow="Sistema"
+        eyebrow="Administração"
         title="Configurações"
         description="Conta, usuários autorizados e parâmetros do sistema."
       />
@@ -47,7 +47,7 @@ function Configuracoes() {
         <div className="space-y-6">
           <Panel title="Concessionária">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/[0.07] text-primary">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-info-soft text-info">
                 <Building2 className="h-5 w-5" />
               </div>
               <div>

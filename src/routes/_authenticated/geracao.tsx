@@ -11,7 +11,7 @@ function Page() {
   return (
     <ModulePage
       icon={Sun}
-      eyebrow="Energia"
+      eyebrow="Gestão energética"
       title="Geração Solar"
       description="Acompanhe a produção mensal da usina fotovoltaica e a energia injetada na rede."
       emptyTitle="Nenhuma geração registrada"

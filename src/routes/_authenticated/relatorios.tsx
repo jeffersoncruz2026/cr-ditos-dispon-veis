@@ -11,7 +11,7 @@ function Page() {
   return (
     <ModulePage
       icon={FileText}
-      eyebrow="Análise"
+      eyebrow="Administração"
       title="Relatórios"
       description="Gere relatórios consolidados de geração, consumo, créditos e finanças."
       emptyTitle="Nenhum relatório gerado"

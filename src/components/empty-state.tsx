@@ -21,16 +21,13 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "relative flex flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed border-border bg-gradient-to-b from-muted/50 to-transparent px-6 text-center",
+        "relative flex flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed border-border bg-muted/30 px-6 text-center",
         compact ? "py-8" : "py-14",
         className,
       )}
     >
-      <div className="relative mb-4">
-        <div className="absolute inset-0 -m-3 rounded-full bg-accent/60 blur-md" aria-hidden />
-        <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-card text-accent-foreground shadow-card ring-1 ring-border">
-          <Icon className="h-5 w-5" />
-        </div>
+      <div className="mb-3.5 flex h-11 w-11 items-center justify-center rounded-xl bg-card text-muted-foreground shadow-card ring-1 ring-border">
+        <Icon className="h-5 w-5" />
       </div>
       <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       <p className="mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">{description}</p>
@@ -51,19 +48,17 @@ export function PageHeader({
   children?: ReactNode;
 }) {
   return (
-    <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mb-6 flex flex-col gap-4 md:mb-8 lg:flex-row lg:items-end lg:justify-between">
       <div className="min-w-0">
         {eyebrow && (
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-success">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
             {eyebrow}
           </p>
         )}
-        <h1 className="text-2xl font-extrabold tracking-tight text-foreground md:text-[28px]">
-          {title}
-        </h1>
-        <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">{description}</p>
+        <h1 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">{title}</h1>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
       </div>
-      {children && <div className="flex shrink-0 flex-wrap gap-2">{children}</div>}
+      {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
     </div>
   );
 }
@@ -82,17 +77,14 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <section
-      className={cn(
-        "rounded-2xl border border-border/60 bg-card p-5 shadow-card md:p-6",
-        className,
-      )}
-    >
+    <section className={cn("min-w-0 rounded-xl border bg-card p-4 shadow-card sm:p-5", className)}>
       {(title || action) && (
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            {title && <h2 className="text-[15px] font-bold tracking-tight">{title}</h2>}
-            {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            {title && <h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>}
+            {description && (
+              <p className="mt-0.5 text-[13px] text-muted-foreground">{description}</p>
+            )}
           </div>
           {action}
         </div>

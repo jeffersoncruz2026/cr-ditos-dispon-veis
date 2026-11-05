@@ -11,7 +11,7 @@ function Page() {
   return (
     <ModulePage
       icon={Share2}
-      eyebrow="Energia"
+      eyebrow="Gestão energética"
       title="Distribuição de Energia"
       description="Defina e acompanhe os percentuais de rateio dos créditos entre as unidades."
       emptyTitle="Nenhum rateio cadastrado"

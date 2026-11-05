@@ -11,7 +11,7 @@ function Page() {
   return (
     <ModulePage
       icon={LineChart}
-      eyebrow="Análise"
+      eyebrow="Inteligência"
       title="Análise Financeira"
       description="Acompanhe despesas com energia, economia gerada e retorno do investimento."
       emptyTitle="Nenhum dado financeiro"

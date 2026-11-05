@@ -1,5 +1,5 @@
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { ChevronRight, LogOut, Settings, ShieldCheck } from "lucide-react";
+import { ChevronRight, LogOut, Moon, Settings, ShieldCheck, Sun } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -17,11 +17,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { findNav } from "@/lib/nav";
 import { capitalizar } from "@/lib/format";
 import { roleLabels, type AppRole } from "@/hooks/use-access";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTema } from "@/lib/theme";
 
 export function AppHeader({ user, role }: { user: User; role: AppRole | undefined }) {
   const path = useRouterState({ select: (r) => r.location.pathname });
   const navigate = useNavigate();
   const current = findNav(path);
+  const { escuro, alternar } = useTema();
   const email = user.email ?? "";
   const initials = email.slice(0, 2).toUpperCase();
   const hoje = capitalizar(
@@ -33,7 +37,7 @@ export function AppHeader({ user, role }: { user: User; role: AppRole | undefine
   );
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border/70 bg-background/80 px-4 backdrop-blur-xl md:px-8">
+    <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border/80 bg-background/85 px-4 backdrop-blur-xl md:h-16 md:px-8">
       <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground" />
       <Separator orientation="vertical" className="h-5" />
       <nav aria-label="Navegação estrutural" className="flex min-w-0 items-center gap-1.5 text-sm">
@@ -46,12 +50,30 @@ export function AppHeader({ user, role }: { user: User; role: AppRole | undefine
         )}
       </nav>
 
-      <div className="ml-auto flex items-center gap-3">
+      <div className="ml-auto flex items-center gap-1.5 md:gap-3">
         <span className="hidden text-sm text-muted-foreground lg:inline">{hoje}</span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-muted-foreground hover:text-foreground"
+              onClick={alternar}
+              aria-label={escuro ? "Ativar modo claro" : "Ativar modo escuro"}
+            >
+              {escuro ? (
+                <Sun className="h-[18px] w-[18px]" />
+              ) : (
+                <Moon className="h-[18px] w-[18px]" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{escuro ? "Modo claro" : "Modo escuro"}</TooltipContent>
+        </Tooltip>
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2.5 rounded-full p-0.5 pr-1 outline-none ring-ring transition hover:bg-muted focus-visible:ring-2 md:pr-3">
             <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-primary text-xs font-bold text-primary-foreground">
+              <AvatarFallback className="bg-navy text-xs font-bold text-white dark:bg-primary">
                 {initials}
               </AvatarFallback>
             </Avatar>

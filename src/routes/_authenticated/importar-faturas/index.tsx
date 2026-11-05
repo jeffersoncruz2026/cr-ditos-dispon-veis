@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   CalendarRange,
   CheckCircle2,
@@ -45,6 +45,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useCurrentAccess } from "@/hooks/use-access";
+import { BuscaTabela, CabecalhoOrdenavel, Paginacao, useTabela } from "@/components/tabela";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { capitalizar, formatBRL, formatKwh, formatMesLongo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -100,6 +108,31 @@ function ImportarFaturas() {
 
   const nomeUnidade = (id: string | null) => unidades.data?.find((u) => u.id === id)?.nome ?? null;
 
+  // Histórico: busca, filtro de status, ordenação e paginação (apenas apresentação).
+  const [busca, setBusca] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState("todos");
+  const historicoFiltrado = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return (importacoes.data ?? []).filter(
+      (i) =>
+        (filtroStatus === "todos" || i.status === filtroStatus) &&
+        (!q ||
+          i.arquivo_nome.toLowerCase().includes(q) ||
+          (nomeUnidade(i.unidade_id) ?? "").toLowerCase().includes(q)),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [importacoes.data, busca, filtroStatus, unidades.data]);
+  const tabela = useTabela(historicoFiltrado, {
+    valores: {
+      arquivo: (i) => i.arquivo_nome,
+      enviado: (i) => i.created_at,
+      unidade: (i) => nomeUnidade(i.unidade_id),
+      competencia: (i) => i.mes_referencia,
+      status: (i) => i.status,
+    },
+    ordemInicial: { chave: "enviado", direcao: "desc" },
+  });
+
   async function receber(files: FileList | File[]) {
     const lista = [...files];
     if (!lista.length || !unidades.data) return;
@@ -130,7 +163,7 @@ function ImportarFaturas() {
   return (
     <>
       <PageHeader
-        eyebrow="Operação"
+        eyebrow="Gestão energética"
         title="Importar Faturas"
         description="Envie o XML da nota fiscal de energia (NF3e) das faturas mensais da Equatorial Goiás. Os dados são lidos diretamente do XML e só entram no sistema após a sua conferência."
       >
@@ -201,7 +234,7 @@ function ImportarFaturas() {
         </Panel>
       )}
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
         <Panel
           title="Aguardando conferência"
           description="Confira os dados extraídos antes de confirmar a importação."
@@ -225,8 +258,8 @@ function ImportarFaturas() {
                     params={{ importacaoId: i.id }}
                     className="flex items-center gap-3 rounded-xl border p-3.5 transition hover:border-success/40 hover:shadow-card"
                   >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/[0.07] text-destructive">
-                      <FileText className="h-5 w-5" />
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-info-soft text-info">
+                      <FileCode2 className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
@@ -286,98 +319,171 @@ function ImportarFaturas() {
             compact
           />
         ) : (
-          <div className="overflow-hidden rounded-xl border">
-            <Table className="min-w-[820px]">
-              <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="pl-4">Arquivo</TableHead>
-                  <TableHead>Enviado em</TableHead>
-                  <TableHead>Unidade</TableHead>
-                  <TableHead>Competência</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-12 pr-4">
-                    <span className="sr-only">Ações</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {importacoes.data.map((i) => (
-                  <TableRow key={i.id}>
-                    <TableCell className="pl-4">
-                      <div className="flex items-center gap-2">
-                        <p className="max-w-[260px] truncate font-medium">{i.arquivo_nome}</p>
-                        <MetodoBadge metodo={i.metodo_extracao} arquivo={i.arquivo_nome} />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {tamanhoArquivo(i.arquivo_tamanho)}
-                      </p>
-                    </TableCell>
-                    <TableCell className="tabular text-muted-foreground">
-                      {new Date(i.created_at).toLocaleString("pt-BR", {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      {nomeUnidade(i.unidade_id) ?? (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {i.mes_referencia ? (
-                        capitalizar(formatMesLongo(i.mes_referencia))
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <StatusImportacao status={i.status} />
-                    </TableCell>
-                    <TableCell className="pr-4">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            aria-label={`Ações de ${i.arquivo_nome}`}
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <Link
-                              to="/importar-faturas/$importacaoId"
-                              params={{ importacaoId: i.id }}
-                            >
-                              <Eye className="h-4 w-4" />
-                              {i.status === "aguardando_conferencia" ? "Conferir" : "Ver detalhes"}
-                            </Link>
-                          </DropdownMenuItem>
-                          {canWrite && i.status !== "descartada" && (
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onSelect={() =>
-                                setRemovendo({
-                                  id: i.id,
-                                  fatura_id: i.fatura_id,
-                                  nome: i.arquivo_nome,
-                                })
-                              }
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              {i.status === "importada" ? "Excluir fatura importada" : "Descartar"}
-                            </DropdownMenuItem>
+          <>
+            <div className="mb-3 flex flex-col gap-2.5 sm:flex-row">
+              <BuscaTabela
+                className="flex-1"
+                valor={busca}
+                onChange={setBusca}
+                placeholder="Buscar por arquivo ou unidade"
+              />
+              <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+                <SelectTrigger className="h-9 sm:w-[210px]" aria-label="Filtrar por status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os status</SelectItem>
+                  <SelectItem value="aguardando_conferencia">Aguardando conferência</SelectItem>
+                  <SelectItem value="importada">Importadas</SelectItem>
+                  <SelectItem value="erro">Com erro</SelectItem>
+                  <SelectItem value="descartada">Descartadas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {tabela.total === 0 ? (
+              <EmptyState
+                icon={History}
+                title="Nenhuma importação encontrada"
+                description="Ajuste a busca ou o filtro de status."
+                compact
+              />
+            ) : (
+              <div className="overflow-hidden rounded-lg border">
+                <Table className="min-w-[820px]">
+                  <TableHeader>
+                    <TableRow>
+                      <CabecalhoOrdenavel
+                        chave="arquivo"
+                        ordem={tabela.ordem}
+                        onOrdenar={tabela.alternar}
+                        className="pl-4"
+                      >
+                        Arquivo
+                      </CabecalhoOrdenavel>
+                      <CabecalhoOrdenavel
+                        chave="enviado"
+                        ordem={tabela.ordem}
+                        onOrdenar={tabela.alternar}
+                      >
+                        Enviado em
+                      </CabecalhoOrdenavel>
+                      <CabecalhoOrdenavel
+                        chave="unidade"
+                        ordem={tabela.ordem}
+                        onOrdenar={tabela.alternar}
+                      >
+                        Unidade
+                      </CabecalhoOrdenavel>
+                      <CabecalhoOrdenavel
+                        chave="competencia"
+                        ordem={tabela.ordem}
+                        onOrdenar={tabela.alternar}
+                      >
+                        Competência
+                      </CabecalhoOrdenavel>
+                      <CabecalhoOrdenavel
+                        chave="status"
+                        ordem={tabela.ordem}
+                        onOrdenar={tabela.alternar}
+                      >
+                        Status
+                      </CabecalhoOrdenavel>
+                      <TableHead className="w-12 pr-4">
+                        <span className="sr-only">Ações</span>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tabela.visiveis.map((i) => (
+                      <TableRow key={i.id}>
+                        <TableCell className="pl-4">
+                          <div className="flex items-center gap-2">
+                            <p className="max-w-[260px] truncate font-medium">{i.arquivo_nome}</p>
+                            <MetodoBadge metodo={i.metodo_extracao} arquivo={i.arquivo_nome} />
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {tamanhoArquivo(i.arquivo_tamanho)}
+                          </p>
+                        </TableCell>
+                        <TableCell className="tabular text-muted-foreground">
+                          {new Date(i.created_at).toLocaleString("pt-BR", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })}
+                        </TableCell>
+                        <TableCell>
+                          {nomeUnidade(i.unidade_id) ?? (
+                            <span className="text-muted-foreground">—</span>
                           )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                        </TableCell>
+                        <TableCell>
+                          {i.mes_referencia ? (
+                            capitalizar(formatMesLongo(i.mes_referencia))
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <StatusImportacao status={i.status} />
+                        </TableCell>
+                        <TableCell className="pr-4">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                aria-label={`Ações de ${i.arquivo_nome}`}
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem asChild>
+                                <Link
+                                  to="/importar-faturas/$importacaoId"
+                                  params={{ importacaoId: i.id }}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                  {i.status === "aguardando_conferencia"
+                                    ? "Conferir"
+                                    : "Ver detalhes"}
+                                </Link>
+                              </DropdownMenuItem>
+                              {canWrite && i.status !== "descartada" && (
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onSelect={() =>
+                                    setRemovendo({
+                                      id: i.id,
+                                      fatura_id: i.fatura_id,
+                                      nome: i.arquivo_nome,
+                                    })
+                                  }
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  {i.status === "importada"
+                                    ? "Excluir fatura importada"
+                                    : "Descartar"}
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <Paginacao
+                  pagina={tabela.pagina}
+                  totalPaginas={tabela.totalPaginas}
+                  total={tabela.total}
+                  porPagina={tabela.porPagina}
+                  onPagina={tabela.setPagina}
+                />
+              </div>
+            )}
+          </>
         )}
       </Panel>
 
@@ -434,7 +540,7 @@ function ItemProcessamento({ item }: { item: ItemFila }) {
               ? "bg-warning/15 text-warning-foreground"
               : r.etapa === "concluido"
                 ? "bg-accent text-accent-foreground"
-                : "bg-primary/[0.07] text-primary",
+                : "bg-info-soft text-info",
         )}
       >
         {r.etapa === "erro" ? (
@@ -493,10 +599,10 @@ function MatrizCompetencias({
     );
   const meses = [...new Set(faturas.map((f) => f.mes_referencia.slice(0, 7)))].sort().reverse();
   return (
-    <div className="overflow-hidden rounded-xl border">
+    <div className="overflow-hidden rounded-lg border">
       <Table className="min-w-[520px]">
         <TableHeader>
-          <TableRow className="bg-muted/50 hover:bg-muted/50">
+          <TableRow>
             <TableHead className="pl-4">Competência</TableHead>
             {unidades.map((u) => (
               <TableHead key={u.id} className="text-center">

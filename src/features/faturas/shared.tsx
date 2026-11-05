@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import type { Aviso } from "./analise";
 
 export const STATUS_IMPORTACAO: Record<string, { rotulo: string; cls: string }> = {
-  processando: { rotulo: "Processando", cls: "bg-primary/[0.07] text-primary ring-primary/20" },
+  processando: { rotulo: "Processando", cls: "bg-info-soft text-info ring-primary/20" },
   aguardando_conferencia: {
     rotulo: "Aguardando conferência",
     cls: "bg-warning/15 text-warning-foreground ring-warning/30",

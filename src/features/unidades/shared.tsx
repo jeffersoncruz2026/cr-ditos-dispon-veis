@@ -50,11 +50,11 @@ export function SituacaoBadge({ situacao }: { situacao: string }) {
 
 export function TipoBadge({ geradora }: { geradora: boolean }) {
   return geradora ? (
-    <Badge className="gap-1 bg-success text-success-foreground hover:bg-success">
+    <Badge className="gap-1 border-transparent bg-solar/15 text-solar-foreground shadow-none hover:bg-solar/15">
       <Sun className="h-3 w-3" /> Geradora
     </Badge>
   ) : (
-    <Badge variant="secondary" className="gap-1">
+    <Badge variant="secondary" className="gap-1 shadow-none">
       <Home className="h-3 w-3" /> Recebedora
     </Badge>
   );
@@ -65,7 +65,7 @@ export function UnidadeIcon({ geradora, className }: { geradora: boolean; classN
     <div
       className={cn(
         "flex shrink-0 items-center justify-center rounded-xl",
-        geradora ? "bg-accent text-accent-foreground" : "bg-primary/[0.07] text-primary",
+        geradora ? "bg-solar/15 text-solar-foreground" : "bg-info-soft text-info",
         className ?? "h-10 w-10",
       )}
     >

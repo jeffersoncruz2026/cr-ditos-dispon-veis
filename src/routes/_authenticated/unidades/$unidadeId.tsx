@@ -134,12 +134,12 @@ function DetalheUnidade() {
         <ArrowLeft className="h-4 w-4" /> Unidades consumidoras
       </Link>
 
-      <section className="mb-6 flex flex-col gap-5 rounded-2xl border border-border/60 bg-card p-5 shadow-card md:flex-row md:items-center md:justify-between md:p-6">
+      <section className="mb-6 flex flex-col gap-5 rounded-xl border bg-card p-5 shadow-card md:flex-row md:items-center md:justify-between md:p-6">
         <div className="flex items-center gap-4">
           <UnidadeIcon geradora={unidade.geradora} className="h-14 w-14 rounded-2xl" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-extrabold tracking-tight">{unidade.nome}</h1>
+              <h1 className="text-2xl font-bold tracking-tight">{unidade.nome}</h1>
               <TipoBadge geradora={unidade.geradora} />
               <SituacaoBadge situacao={unidade.situacao} />
             </div>
@@ -376,10 +376,10 @@ function Indicador({
   loading?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-card">
+    <div className="rounded-xl border bg-card p-5 shadow-card">
       <div className="flex items-center justify-between">
         <p className="text-[13px] font-medium text-muted-foreground">{label}</p>
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/[0.07] text-primary">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-info-soft text-info">
           <Icon className="h-4 w-4" />
         </div>
       </div>
@@ -388,7 +388,7 @@ function Indicador({
       ) : (
         <p
           className={cn(
-            "tabular mt-1.5 text-2xl font-extrabold tracking-tight",
+            "tabular mt-1.5 text-2xl font-bold tracking-tight",
             valor === "—" && "text-muted-foreground/50",
           )}
         >
@@ -438,7 +438,7 @@ function PainelUsina({ unidade }: { unidade: UnidadeComRateio }) {
           </p>
         ) : (
           <>
-            <p className="tabular mt-4 text-4xl font-extrabold tracking-tight">
+            <p className="tabular mt-4 text-4xl font-bold tracking-tight">
               {u.potencia_kwp ? u.potencia_kwp.toLocaleString("pt-BR") : "—"}
               <span className="ml-1.5 text-base font-semibold text-white/70">kWp</span>
             </p>
@@ -486,7 +486,7 @@ function UsinaDado({
 function StatusFatura({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
     paga: { label: "Paga", cls: "bg-accent text-accent-foreground" },
-    pendente: { label: "Pendente", cls: "bg-primary/[0.07] text-primary" },
+    pendente: { label: "Pendente", cls: "bg-info-soft text-info" },
     vencida: { label: "Vencida", cls: "bg-destructive/10 text-destructive" },
   };
   const s = map[status] ?? { label: status, cls: "bg-muted text-muted-foreground" };
@@ -503,10 +503,10 @@ function TabelaSimples({
   chave: string[];
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border">
+    <div className="overflow-hidden rounded-lg border">
       <Table className="min-w-[620px]">
         <TableHeader>
-          <TableRow className="bg-muted/50 hover:bg-muted/50">
+          <TableRow>
             {colunas.map((c, i) => (
               <TableHead
                 key={c}

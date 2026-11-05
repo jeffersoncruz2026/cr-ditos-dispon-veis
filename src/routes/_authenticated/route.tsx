@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import { Loader2, LogOut, ShieldAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -20,6 +20,7 @@ export const Route = createFileRoute("/_authenticated")({
 function Layout() {
   const { user } = Route.useRouteContext();
   const access = useAccess(user.id);
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
 
   if (access.isLoading) {
     return (
@@ -40,7 +41,10 @@ function Layout() {
       <AppSidebar />
       <SidebarInset className="min-w-0 bg-background">
         <AppHeader user={user} role={access.primaryRole} />
-        <div className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 md:px-8 md:py-8">
+        <div
+          key={pathname}
+          className="animate-entrada mx-auto w-full max-w-[1440px] flex-1 px-4 py-5 md:px-8 md:py-8"
+        >
           <Outlet />
         </div>
       </SidebarInset>
@@ -59,7 +63,7 @@ function AcessoPendente({
 }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
-      <div className="w-full max-w-md rounded-3xl bg-card p-8 text-center shadow-card">
+      <div className="w-full max-w-md rounded-2xl border bg-card p-8 text-center shadow-card">
         <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-warning/15 text-warning-foreground">
           <ShieldAlert className="h-7 w-7" />
         </div>

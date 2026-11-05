@@ -53,6 +53,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { CabecalhoOrdenavel, Paginacao, useTabela } from "@/components/tabela";
 import { useCurrentAccess } from "@/hooks/use-access";
 import { capitalizar, formatMesLongo } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -104,6 +105,16 @@ function UnidadesPage() {
     );
   }, [unidades, busca, tipo, situacao]);
 
+  const tabela = useTabela(filtradas, {
+    valores: {
+      nome: (u) => u.nome,
+      uc: (u) => u.numero_uc,
+      tipo: (u) => (u.geradora ? 0 : 1),
+      rateio: (u) => u.percentual,
+      situacao: (u) => u.situacao,
+    },
+  });
+
   const somaVigente = vigente ? vigente.itens.reduce((a, i) => a + i.percentual, 0) : null;
   const rateioValido = somaVigente !== null && Math.round(somaVigente * 100) === 10000;
   const usina = unidades.find((u) => u.usina)?.usina ?? null;
@@ -112,7 +123,7 @@ function UnidadesPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Operação"
+        eyebrow="Visão geral"
         title="Unidades Consumidoras"
         description="Cadastro das unidades que participam do sistema de compensação de energia e da distribuição dos créditos."
       >
@@ -139,7 +150,7 @@ function UnidadesPage() {
         </div>
       )}
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
         <Resumo
           loading={isLoading}
           icon={Home}
@@ -249,23 +260,47 @@ function UnidadesPage() {
             compact
           />
         ) : (
-          <div className="overflow-hidden rounded-xl border">
+          <div className="overflow-hidden rounded-lg border">
             <Table className="min-w-[860px]">
               <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="pl-4">Unidade</TableHead>
-                  <TableHead>UC</TableHead>
-                  <TableHead>Tipo</TableHead>
+                <TableRow>
+                  <CabecalhoOrdenavel
+                    chave="nome"
+                    ordem={tabela.ordem}
+                    onOrdenar={tabela.alternar}
+                    className="pl-4"
+                  >
+                    Unidade
+                  </CabecalhoOrdenavel>
+                  <CabecalhoOrdenavel chave="uc" ordem={tabela.ordem} onOrdenar={tabela.alternar}>
+                    UC
+                  </CabecalhoOrdenavel>
+                  <CabecalhoOrdenavel chave="tipo" ordem={tabela.ordem} onOrdenar={tabela.alternar}>
+                    Tipo
+                  </CabecalhoOrdenavel>
                   <TableHead>Distribuidora</TableHead>
-                  <TableHead className="w-[180px]">Rateio vigente</TableHead>
-                  <TableHead>Situação</TableHead>
+                  <CabecalhoOrdenavel
+                    chave="rateio"
+                    ordem={tabela.ordem}
+                    onOrdenar={tabela.alternar}
+                    className="w-[180px]"
+                  >
+                    Rateio vigente
+                  </CabecalhoOrdenavel>
+                  <CabecalhoOrdenavel
+                    chave="situacao"
+                    ordem={tabela.ordem}
+                    onOrdenar={tabela.alternar}
+                  >
+                    Situação
+                  </CabecalhoOrdenavel>
                   <TableHead className="w-12 pr-4">
                     <span className="sr-only">Ações</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtradas.map((u) => (
+                {tabela.visiveis.map((u) => (
                   <TableRow
                     key={u.id}
                     className="cursor-pointer"
@@ -360,6 +395,15 @@ function UnidadesPage() {
                 ))}
               </TableBody>
             </Table>
+            {tabela.totalPaginas > 1 && (
+              <Paginacao
+                pagina={tabela.pagina}
+                totalPaginas={tabela.totalPaginas}
+                total={tabela.total}
+                porPagina={tabela.porPagina}
+                onPagina={tabela.setPagina}
+              />
+            )}
           </div>
         )}
       </Panel>
@@ -482,19 +526,21 @@ function Resumo({
   tom?: "ok" | "erro" | "atencao" | undefined;
 }) {
   return (
-    <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-card">
-      <div className="flex items-center justify-between">
-        <p className="text-[13px] font-medium text-muted-foreground">{label}</p>
+    <div className="min-w-0 rounded-xl border bg-card p-3.5 shadow-card sm:p-4">
+      <div className="flex items-start justify-between gap-2">
+        <p className="line-clamp-2 text-[12px] font-medium leading-tight text-muted-foreground sm:text-[13px]">
+          {label}
+        </p>
         <div
           className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-lg",
+            "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
             tom === "erro"
               ? "bg-destructive/10 text-destructive"
               : tom === "atencao"
                 ? "bg-warning/15 text-warning-foreground"
                 : tom === "ok"
                   ? "bg-accent text-accent-foreground"
-                  : "bg-primary/[0.07] text-primary",
+                  : "bg-info-soft text-info",
           )}
         >
           {tom === "erro" ? (
@@ -509,7 +555,9 @@ function Resumo({
       {loading ? (
         <Skeleton className="mt-2 h-7 w-24" />
       ) : (
-        <p className="tabular mt-1.5 text-2xl font-extrabold tracking-tight">{valor}</p>
+        <p className="tabular mt-2 truncate text-xl font-bold tracking-tight sm:text-[22px]">
+          {valor}
+        </p>
       )}
       <p className="mt-1 truncate text-xs text-muted-foreground">{loading ? " " : detalhe}</p>
     </div>
@@ -588,10 +636,10 @@ function HistoricoRateio({
 }) {
   const hoje = new Date().toISOString().slice(0, 10);
   return (
-    <div className="overflow-hidden rounded-xl border">
+    <div className="overflow-hidden rounded-lg border">
       <Table className="min-w-[560px]">
         <TableHeader>
-          <TableRow className="bg-muted/50 hover:bg-muted/50">
+          <TableRow>
             <TableHead className="pl-4">Vigência</TableHead>
             {unidades.map((u) => (
               <TableHead key={u.id} className="text-right">
@@ -621,7 +669,7 @@ function HistoricoRateio({
                           "ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
                           status === "Vigente"
                             ? "bg-accent text-accent-foreground"
-                            : "bg-primary/[0.07] text-primary",
+                            : "bg-info-soft text-info",
                         )}
                       >
                         {status}
