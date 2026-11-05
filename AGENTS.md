@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep database changes additive and create file buckets through the Storage API; historical blocked migrations remain commented so dependency-ordered replacements can apply safely.

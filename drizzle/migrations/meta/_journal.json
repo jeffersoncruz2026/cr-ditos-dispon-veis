@@ -57,6 +57,13 @@
       "when": 1793800000003,
       "tag": "0007_restaurar_importacao_faturas",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793884698012,
+      "tag": "0008_restringir_funcoes_acesso",
+      "breakpoints": true
     }
   ]
 }
